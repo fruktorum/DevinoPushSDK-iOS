@@ -721,26 +721,6 @@ public final class Devino: NSObject {
                 request.httpBody = try JSONSerialization.data(withJSONObject: (meth.apiType == "sdk") ? (params as Any) : (apiParams as Any), options: JSONSerialization.WritingOptions())
             }
             
-//            var urlWithBody = url.absoluteString
-//            if meth.apiType == "sdk" {
-//                urlWithBody += "?"
-//                if let par = params as [String: AnyObject]? {
-//                    for (key, elem) in par {
-//                        urlWithBody += "\(key)=\(elem)&"
-//                    }
-//                }
-//                urlWithBody.removeLast()
-//            } else {
-//                urlWithBody += "?"
-//                if let par = apiParams?.first as? [String: AnyObject] {
-//                    for (key, elem) in par {
-//                        urlWithBody += "\(key)=\(elem)&"
-//                    }
-//                }
-//                urlWithBody.removeLast()
-//            }
-//            request.url = URL(string: urlWithBody)
-//
             // Create and run a URLSession data task with our JSON encoded POST request
             let config = URLSessionConfiguration.default
             let session = URLSession(configuration: config)
