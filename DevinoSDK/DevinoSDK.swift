@@ -120,20 +120,19 @@ public final class Devino: NSObject {
     public func getLastSubscriptionStatus(_ completionHandler: @escaping (Bool) -> Void) {
         makeRequest(.usersSubscriptionStatus) { (data, response, error) in
             if let error = error {
-                print("❌ Error = \(error)")
+                self.log("Error = \(error)")
             }
             if let data = data {
                 do {
                     let jsonData = try JSONSerialization.jsonObject(with: data, options: []) as? [String: AnyObject]
                     if let result = jsonData?["result"] as? Bool {
-                        print("✅ Result last subscription = \(result)")
+                        self.log("Result last subscription = \(result)")
                         completionHandler(result)
                     } else {
-                        print("❌ Error = \(String(describing: jsonData))")
-                        self.log("❌ Error = \(String(describing: jsonData))")
+                        self.log("Error = \(String(describing: jsonData))")
                     }
                 } catch {
-                    print("❌ Could not parse data: \(error)")
+                    self.log("Could not parse data: \(error)")
                 }
             }
         }
@@ -160,7 +159,6 @@ public final class Devino: NSObject {
         isSendPush = true
         locManager.desiredAccuracy = kCLLocationAccuracyBest
         locManager.requestAlwaysAuthorization()
-        print("SEND PUSH WITH LOCATION")
         log("SEND PUSH WITH LOCATION")
         Devino.shared.startUpdateLocation()
     }
@@ -186,11 +184,11 @@ public final class Devino: NSObject {
                                    action: String? = nil) {
         getPermissionForPushNotifications { subscribed in
             if subscribed {
-                print("PUSH sendPushWithOption", subscribed)
+                self.log("PUSH sendPushWithOption: \(subscribed)")
                 let apns = self.createAPNsOptions(sound, linkToMedia, buttons, action)
                 self.makeRequest(.messages(title: title, text: text, badge: badge?.rawValue, validity: validity, priority: priority, silentPush: silentPush, options: options, apns: apns))
             } else {
-                print("PUSH sendPushWithOption", subscribed)
+                self.log("PUSH sendPushWithOption: \(subscribed)")
                 self.showPushPermissionMsg()
             }
         }
@@ -227,7 +225,6 @@ public final class Devino: NSObject {
         guard let time = configuration?.geoDataSendindInterval, time > 0 else { return }
         locManager.desiredAccuracy = kCLLocationAccuracyBest
         locManager.requestAlwaysAuthorization()
-        print("TRACK LOCATION")
         log("TRACK LOCATION")
         Devino.shared.startUpdateLocation()
         timer = Timer.scheduledTimer(timeInterval: TimeInterval(time * 60), target: self, selector: (#selector(Devino.shared.startUpdateLocation)), userInfo: nil, repeats: true)
@@ -283,7 +280,6 @@ public final class Devino: NSObject {
         if let action = action {
             apnsOptions["action"] = action
         }
-        print("APNs DATA = \(apnsOptions)")
         log("APNs DATA = \(apnsOptions)")
         return apnsOptions.isEmpty ? nil : apnsOptions
     }
@@ -431,7 +427,7 @@ public final class Devino: NSObject {
         
         downloadTask = URLSession.shared.downloadTask(with: url)
         { (location, response, error) in
-            print("downloadTask error: \(error.debugDescription)")
+            self.log("downloadTask error: \(error.debugDescription)")
             if let location = location {
                 let tmpDirectory = NSTemporaryDirectory()
                 let tmpFile = "file://".appending(tmpDirectory).appending(url.lastPathComponent)
@@ -469,7 +465,6 @@ public final class Devino: NSObject {
         }
     }
     
-    
     //MARK: -Permissions
     private func getPermissionForPushNotifications(completion: @escaping (Bool) -> ()) {
         if #available(iOS 10.0, *) {
@@ -497,15 +492,17 @@ public final class Devino: NSObject {
     }
 
     func showPushPermissionMsg() {
-        let alertController = UIAlertController(title: "Push Notifications Permission Required", message: "Please enable push notifications permissions in settings.", preferredStyle: UIAlertController.Style.alert)
-        let okAction = UIAlertAction(title: "Settings", style: .default, handler: {(cAlertAction) in
-            //Redirect to Settings app
-            UIApplication.shared.open(URL(string: UIApplication.openSettingsURLString)!)
-        })
-        let cancelAction = UIAlertAction(title: "Cancel", style: UIAlertAction.Style.cancel)
-        alertController.addAction(cancelAction)
-        alertController.addAction(okAction)
-        UIApplication.shared.keyWindow?.rootViewController?.present(alertController, animated: true, completion: nil)
+        DispatchQueue.main.async {
+            let alertController = UIAlertController(title: "Push Notifications Permission Required", message: "Please enable push notifications permissions in settings.", preferredStyle: UIAlertController.Style.alert)
+            let okAction = UIAlertAction(title: "Settings", style: .default, handler: {(cAlertAction) in
+                //Redirect to Settings app
+                UIApplication.shared.open(URL(string: UIApplication.openSettingsURLString)!)
+            })
+            let cancelAction = UIAlertAction(title: "Cancel", style: UIAlertAction.Style.cancel)
+            alertController.addAction(cancelAction)
+            alertController.addAction(okAction)
+            UIApplication.shared.keyWindow?.rootViewController?.present(alertController, animated: true, completion: nil)
+        }
     }
     
 //MARK: -Base params
@@ -720,8 +717,7 @@ public final class Devino: NSObject {
         headers["Content-Type"] = "application/json"
         headers["Authorization"] = configuration.key//X-Api-Key
         request.allHTTPHeaderFields = headers
-        print("✴️ HEADERS = \(headers)")
-        log("✴️ HEADERS = \(headers)")
+        log("Headers: \(headers)")
 
         do {
             var params = meth.params
@@ -746,26 +742,21 @@ public final class Devino: NSObject {
             let count = requestCounter
             requestCounter += 1
             if let url = request.url?.absoluteURL {
-                print("➡️ Request(\(count)): url[\(url)]")
-                log("➡️ Request(\(count)): url[\(url)]")
+                log("Request(\(count)): url[\(url)]")
             }
             if let body = request.httpBody {
-                print("✴️ BODY DATA = \(String(data: body, encoding: .utf8) ?? "no body data")")
-                log("✴️ BODY DATA = \(String(data: body, encoding: .utf8) ?? "no body data")")
+                log("Body data: \(String(data: body, encoding: .utf8) ?? "no body data")")
             }
             let task = session.dataTask(with: request) {[weak self] (responseData, response, responseError) in
                 DispatchQueue.main.async {
                     let httpResponse = response as? HTTPURLResponse
                     // APIs usually respond with the data you just sent in your POST request
                     if let data = responseData, let utf8Representation = String(data: data, encoding: .utf8) {
-                        print("⬅️ Response(\(count)):[\(String(describing: httpResponse?.statusCode))]: \(utf8Representation)")
-                        self?.log("⬅️ Response(\(count)):[\(String(describing: httpResponse?.statusCode))]: \(utf8Representation)")
+                        self?.log("Response(\(count)):[\(String(describing: httpResponse?.statusCode))]: \(utf8Representation)")
                         completionHandler?(data, httpResponse, nil)
                     } else if let error = responseError {
-                        print("❌ Response Error = \(error.localizedDescription))")
-                        self?.log("❌ Response Error = \(error.localizedDescription))")
-                        print("❌ Response(\(count)):[\(String(describing: httpResponse?.statusCode))]: no readable data received in response")
-                        self?.log("❌ Response(\(count)):[\(String(describing: httpResponse?.statusCode))]: no readable data received in response")
+                        self?.log("Response Error = \(error.localizedDescription))")
+                        self?.log("Response(\(count)):[\(String(describing: httpResponse?.statusCode))]: no readable data received in response")
                         completionHandler?(nil, nil, error)
                     }
                     
@@ -780,8 +771,7 @@ public final class Devino: NSObject {
             }
             task.resume()
         } catch {
-            print("❌ ERROR: \(error)")
-            log("❌ ERROR: \(error)")
+            log("Error: \(error)")
         }
     }
     
@@ -808,14 +798,11 @@ public final class Devino: NSObject {
             // APIs usually respond with the data you just sent in your POST request
             if let data = responseData, let utf8Representation = String(data: data, encoding: .utf8) {
                 self?.failedRequestsCount.removeValue(forKey: request)
-                print("⬅️ Response: \(utf8Representation)")
-                self?.log("⬅️ Response: \(utf8Representation)")
+                self?.log("Response: \(utf8Representation)")
             } else if let error = responseError {
-                self?.log("❌ Error \(error.localizedDescription)")
-                print("❌ Error \(error.localizedDescription)")
+                self?.log("Error \(error.localizedDescription)")
             } else {
-                self?.log("❌ No readable data received in response")
-                print("❌ No readable data received in response")
+                self?.log("No readable data received in response")
             }
             
             if httpResponse == nil || httpResponse?.statusCode == 500 {
@@ -834,15 +821,13 @@ public final class Devino: NSObject {
             failedRequestsCount.removeAll()
             return
         }
-        print("Will be a repeat request \(String(describing: request.url)) №(\(newVal)) after \(repeatTime) sec")
+        log("Will be a repeat request \(String(describing: request.url)) №(\(newVal)) after \(repeatTime) sec")
         concurrent.asyncAfter(deadline: .now() + .seconds(repeatTime)) {
             if let url = request.url?.absoluteURL {
-                print("🔄 REPEATE: url[\(url)]")
-                self.log("🔄 REPEATE: url[\(url)]")
+                self.log("REPEATE: url[\(url)]")
             }
             if let body = request.httpBody {
-                print("✴️ BODY DATA = \(String(data: body, encoding: .utf8) ?? "no body data")")
-                self.log("✴️ BODY DATA = \(String(data: body, encoding: .utf8) ?? "no body data")")
+                self.log("Body data: \(String(data: body, encoding: .utf8) ?? "no body data")")
             }
             task.resume()
         }
@@ -857,21 +842,17 @@ extension Devino: CLLocationManagerDelegate {
         if CLLocationManager.locationServicesEnabled() {
             switch CLLocationManager.authorizationStatus() {
             case .notDetermined, .restricted, .denied:
-                print("✅ Location No Access")
-                log("✅ Location No Access")
+                log("Location No Access")
                 showLocationPermissionMsg()
             case .authorizedAlways, .authorizedWhenInUse:
-                print("✅ Location Access")
-                log("✅ Location Access")
+                log("Location Access")
                 locManager.requestLocation()
             default:
-                print("❌ Location No Access (unknown)")
-                log("❌ Location No Access (unknown)")
+                log("Location No Access (unknown)")
                 break
             }
         } else {
-            print("❌ Location services are not enabled")
-            log("❌ Location services are not enabled")
+            log("Location services are not enabled")
         }
     }
     
@@ -890,7 +871,7 @@ extension Devino: CLLocationManagerDelegate {
     }
 
     public func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        log("❌ Error location: \(error)")
+        log("Error location: \(error)")
     }
 
     private func showLocationPermissionMsg() {
