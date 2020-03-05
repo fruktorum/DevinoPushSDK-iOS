@@ -60,7 +60,7 @@ public final class Devino: NSObject {
         return locationManager
     }()
     private var timer: Timer? = nil
-    private static var isUserNotificationsAvailable = false
+    public static var isUserNotificationsAvailable = false
     
 //MARK: -Public:
     
@@ -117,8 +117,26 @@ public final class Devino: NSObject {
         makeRequest(.usersSubscribtion(subscribed: isSubscribe))
     }
     
-    public func getLastSubscriptionStatus() {
-        return makeRequest(.usersSubscriptionStatus)
+    public func getLastSubscriptionStatus(_ completionHandler: @escaping (Bool) -> Void) {
+        makeRequest(.usersSubscriptionStatus) { (data, response, error) in
+            if let error = error {
+                print("❌ Error = \(error)")
+            }
+            if let data = data {
+                do {
+                    let jsonData = try JSONSerialization.jsonObject(with: data, options: []) as? [String: AnyObject]
+                    if let result = jsonData?["result"] as? Bool {
+                        print("✅ Result last subscription = \(result)")
+                        completionHandler(result)
+                    } else {
+                        print("❌ Error = \(String(describing: jsonData))")
+                        self.log("❌ Error = \(String(describing: jsonData))")
+                    }
+                } catch {
+                    print("❌ Could not parse data: \(error)")
+                }
+            }
+        }
     }
     
 //    // For ios <10
@@ -675,7 +693,7 @@ public final class Devino: NSObject {
     
 //MARK: -Make Request:
     
-    private func makeRequest(_ meth: APIMethod, _ completionHandler: ((HTTPURLResponse?, Error?) -> Void)? = nil) {
+    private func makeRequest(_ meth: APIMethod, _ completionHandler: ((Data?, HTTPURLResponse?, Error?) -> Void)? = nil) {
         guard let configuration = configuration else {
             log("Not Configured")
             return }
@@ -687,11 +705,13 @@ public final class Devino: NSObject {
         urlComponents.host = configuration.apiRootUrl
         switch meth {
         case .usersSubscriptionStatus:
-            urlComponents.path = "/push/\(path)?applicationId=\(applicationId)"
+            urlComponents.path = "/push/\(path)"
+            urlComponents.queryItems = [
+               URLQueryItem(name: "applicationId", value: "\(applicationId)")
+            ]
         default:
             urlComponents.path = "/push/\(path)"
         }
-//        urlComponents.path = "/push/\(path)"
         guard let url = urlComponents.url else { fatalError("Could not create URL from components") }
         
         var request = URLRequest(url: url)
@@ -700,12 +720,10 @@ public final class Devino: NSObject {
         headers["Content-Type"] = "application/json"
         headers["Authorization"] = configuration.key//X-Api-Key
         request.allHTTPHeaderFields = headers
-        print("HEADERS = \(headers)")
-        log("HEADERS = \(headers)")
-        print("PATH = \(urlComponents.path)")
-        
+        print("✴️ HEADERS = \(headers)")
+        log("✴️ HEADERS = \(headers)")
+
         do {
-            
             var params = meth.params
             var apiParams: [Any]?
             switch meth {
@@ -728,38 +746,42 @@ public final class Devino: NSObject {
             let count = requestCounter
             requestCounter += 1
             if let url = request.url?.absoluteURL {
-                print("Request(\(count)): url[\(url)]")
-                log("Request(\(count)): url[\(url)]")
+                print("➡️ Request(\(count)): url[\(url)]")
+                log("➡️ Request(\(count)): url[\(url)]")
             }
             if let body = request.httpBody {
-                print("\(String(data: body, encoding: .utf8) ?? "no body data")")
-                log("\(String(data: body, encoding: .utf8) ?? "no body data")")
+                print("✴️ BODY DATA = \(String(data: body, encoding: .utf8) ?? "no body data")")
+                log("✴️ BODY DATA = \(String(data: body, encoding: .utf8) ?? "no body data")")
             }
-            
             let task = session.dataTask(with: request) {[weak self] (responseData, response, responseError) in
-                let httpResponse = response as? HTTPURLResponse
-                // APIs usually respond with the data you just sent in your POST request
-                if let data = responseData, let utf8Representation = String(data: data, encoding: .utf8) {
-                    print("Response(\(count)):[\(String(describing: httpResponse?.statusCode))]: \(utf8Representation)")
-                    self?.log("Response(\(count)):[\(String(describing: httpResponse?.statusCode))]: \(utf8Representation)")
-                    completionHandler?(httpResponse, nil)
-                } else if let error = responseError {
-                    self?.log("Response Error = \(error.localizedDescription))")
-                    self?.log("Response(\(count)):[\(String(describing: httpResponse?.statusCode))]: no readable data received in response")
-                    completionHandler?(nil, error)
-                }
-                
-                if httpResponse == nil || httpResponse?.statusCode == 500 {
-                    self?.needRepeatRequest(request: request)
-                    return
-                } else if let statusCode = httpResponse?.statusCode, statusCode > 299 {
-                    self?.needRepeatRequest(request: request)
-                    return
+                DispatchQueue.main.async {
+                    let httpResponse = response as? HTTPURLResponse
+                    // APIs usually respond with the data you just sent in your POST request
+                    if let data = responseData, let utf8Representation = String(data: data, encoding: .utf8) {
+                        print("⬅️ Response(\(count)):[\(String(describing: httpResponse?.statusCode))]: \(utf8Representation)")
+                        self?.log("⬅️ Response(\(count)):[\(String(describing: httpResponse?.statusCode))]: \(utf8Representation)")
+                        completionHandler?(data, httpResponse, nil)
+                    } else if let error = responseError {
+                        print("❌ Response Error = \(error.localizedDescription))")
+                        self?.log("❌ Response Error = \(error.localizedDescription))")
+                        print("❌ Response(\(count)):[\(String(describing: httpResponse?.statusCode))]: no readable data received in response")
+                        self?.log("❌ Response(\(count)):[\(String(describing: httpResponse?.statusCode))]: no readable data received in response")
+                        completionHandler?(nil, nil, error)
+                    }
+                    
+                    if httpResponse == nil || httpResponse?.statusCode == 500 {
+                        self?.needRepeatRequest(request: request)
+                        return
+                    } else if let statusCode = httpResponse?.statusCode, statusCode > 299 {
+                        self?.needRepeatRequest(request: request)
+                        return
+                    }
                 }
             }
             task.resume()
         } catch {
-            log("ERROR: \(error)")
+            print("❌ ERROR: \(error)")
+            log("❌ ERROR: \(error)")
         }
     }
     
@@ -786,13 +808,14 @@ public final class Devino: NSObject {
             // APIs usually respond with the data you just sent in your POST request
             if let data = responseData, let utf8Representation = String(data: data, encoding: .utf8) {
                 self?.failedRequestsCount.removeValue(forKey: request)
-                print("response: \(utf8Representation)")
-                self?.log("response: \(utf8Representation)")
+                print("⬅️ Response: \(utf8Representation)")
+                self?.log("⬅️ Response: \(utf8Representation)")
             } else if let error = responseError {
-                self?.log("error \(error.localizedDescription)")
-                print("error \(error.localizedDescription)")
+                self?.log("❌ Error \(error.localizedDescription)")
+                print("❌ Error \(error.localizedDescription)")
             } else {
-                print("no readable data received in response")
+                self?.log("❌ No readable data received in response")
+                print("❌ No readable data received in response")
             }
             
             if httpResponse == nil || httpResponse?.statusCode == 500 {
@@ -814,12 +837,12 @@ public final class Devino: NSObject {
         print("Will be a repeat request \(String(describing: request.url)) №(\(newVal)) after \(repeatTime) sec")
         concurrent.asyncAfter(deadline: .now() + .seconds(repeatTime)) {
             if let url = request.url?.absoluteURL {
-                self.log("REPEATE: url[\(url)] ")
-                print("REPEATE: url[\(url)] ")
+                print("🔄 REPEATE: url[\(url)]")
+                self.log("🔄 REPEATE: url[\(url)]")
             }
             if let body = request.httpBody {
-                self.log("\(String(data: body, encoding: .utf8) ?? "no body data")")
-                print("\(String(data: body, encoding: .utf8) ?? "no body data")")
+                print("✴️ BODY DATA = \(String(data: body, encoding: .utf8) ?? "no body data")")
+                self.log("✴️ BODY DATA = \(String(data: body, encoding: .utf8) ?? "no body data")")
             }
             task.resume()
         }
@@ -834,27 +857,27 @@ extension Devino: CLLocationManagerDelegate {
         if CLLocationManager.locationServicesEnabled() {
             switch CLLocationManager.authorizationStatus() {
             case .notDetermined, .restricted, .denied:
-                log("Location No Access")
-                print("Location No Access")
+                print("✅ Location No Access")
+                log("✅ Location No Access")
                 showLocationPermissionMsg()
             case .authorizedAlways, .authorizedWhenInUse:
-                log("Location Access")
-                print("Location Access")
+                print("✅ Location Access")
+                log("✅ Location Access")
                 locManager.requestLocation()
             default:
-                log("Location No Access (unknown)")
-                print("Location No Access (unknown)")
+                print("❌ Location No Access (unknown)")
+                log("❌ Location No Access (unknown)")
                 break
             }
         } else {
-            log("Location services are not enabled")
-            print("Location services are not enabled")
+            print("❌ Location services are not enabled")
+            log("❌ Location services are not enabled")
         }
     }
     
     public func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         let userLocation: CLLocation = locations[0] as CLLocation
-        makeRequest(.usersGeo(long: userLocation.coordinate.longitude, lat: userLocation.coordinate.latitude)) { [weak self] (response, error) in
+        makeRequest(.usersGeo(long: userLocation.coordinate.longitude, lat: userLocation.coordinate.latitude)) { [weak self] (data, response, error) in
             guard let `self` = self else { return }
             if self.isSendPush {
                 self.isSendPush = false
@@ -867,7 +890,7 @@ extension Devino: CLLocationManagerDelegate {
     }
 
     public func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        log("Error location: \(error)")
+        log("❌ Error location: \(error)")
     }
 
     private func showLocationPermissionMsg() {
