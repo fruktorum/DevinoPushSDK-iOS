@@ -45,15 +45,15 @@ class NotificationService: DevinoNotificationService {}
 
 ### Configuring DevinoSDK in AppDelegate:
 
-1. Adding **import DevinoSDK**:
+**1. Adding ***import DevinoSDK***:**
 ```swift
 import DevinoSDK
 ```
-2. Initialize **DevinoUNUserNotificationCenter**:
+**2. Initialize ***DevinoUNUserNotificationCenter***:**
 ```swift
 let devinoUNUserNotificationCenter = DevinoUNUserNotificationCenter()
 ```
-3. Making settings in the **didFinishLaunchingWithOptions** method:
+**3. Making settings in the ***didFinishLaunchingWithOptions*** method:**
 
 Add the Devino API key (key) and the PushApplication identifier (applicationId), which are issued after registering your application in your personal account.
 Also, you can specify the interval for updating geolocation data in minutes (geoDataSendindInterval). The default is 0 minutes - never transfer data.
@@ -71,14 +71,14 @@ func application(_ application: UIApplication, didFinishLaunchingWithOptions lau
     return true
  }
 ```
-4. In the **didFinishLaunchingWithOptions** method, assign the delegate object to the UNUserNotificationCenter object:
+**4. In the ***didFinishLaunchingWithOptions*** method, assign the delegate object to the UNUserNotificationCenter object:**
 
 ```swift
 // assign delegate object to the UNUserNotificationCenter object:
     UNUserNotificationCenter.current().delegate = devinoUNUserNotificationCenter
 ```
 
-5. Handlers of Action buttons in notifications:
+**5. Handlers of Action buttons in notifications:**
 
 ```swift
 devinoUNUserNotificationCenter.setActionForUrl { url in
@@ -95,7 +95,7 @@ devinoUNUserNotificationCenter.setActionForCustomDefault { action in
 }
 ```
 
-6. Authentification with deviceToken:
+**6. Authentification with deviceToken:**
 
 ```swift
 func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
@@ -103,7 +103,7 @@ func application(_ application: UIApplication, didRegisterForRemoteNotifications
 }
 ```
 
-7. Tracking subscription status:
+**7. Tracking subscription status:**
 
 ```swift
 func applicationWillEnterForeground(_ application: UIApplication) {
@@ -111,7 +111,7 @@ func applicationWillEnterForeground(_ application: UIApplication) {
 }
 ```
 
-8. Tracking application termination:
+**8. Tracking application termination:**
 
 ```swift
 func applicationWillTerminate(_ application: UIApplication) {
@@ -119,7 +119,7 @@ func applicationWillTerminate(_ application: UIApplication) {
 }
 ```
 
-9. Receive Remote Notifications:
+**9. Receive Remote Notifications:**
 ```swift
 public func application(_ application: UIApplication, didReceiveRemoteNotification userInfo: [AnyHashable : Any], fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
     Devino.shared.trackReceiveRemoteNotification(userInfo)
@@ -127,7 +127,7 @@ public func application(_ application: UIApplication, didReceiveRemoteNotificati
 }
 ```
 
-10. Tracking Local Notifications:
+**10. Tracking Local Notifications:**
 ```swift
 func application(_ application: UIApplication, handleActionWithIdentifier identifier: String?, for notification: UILocalNotification, completionHandler: @escaping () -> Void) {
     Devino.shared.trackLocalNotification(notification, with: identifier)
@@ -137,14 +137,38 @@ func application(_ application: UIApplication, handleActionWithIdentifier identi
 
 ## Functionality DevinoSDK:
 
-1. Change user notification status:
+**1. Change user notification status:**
 
 - Subscription: if confirmation of receipt of notifications is not required or it has been successful;
 - Unsubscribe: if the user has disabled notifications in the application.
 
 If the user has changed the notification settings in the system, the SDK monitors this event automatically.
 
-2. Update user data:
+**2. Sending user notification status:**
+
+```swift
+public func sendCurrentSubscriptionStatus(isSubscribe: Bool)
+```
+
+Example:
+```swift
+Devino.shared.sendCurrentSubscriptionStatus(isSubscribe: true)
+```
+
+**3. Receive user notification status:**
+
+```swift
+public func getLastSubscriptionStatus(_ completionHandler: @escaping (Bool) -> Void)
+```
+
+Example:
+```swift
+Devino.shared.getLastSubscriptionStatus { result in
+    //do smth with result
+}
+```
+
+**4. Update user data:**
 
 ```swift
 public func setUserData(phone: String?, email: String?)
@@ -162,7 +186,7 @@ Phone format - +79XXXXXXXXX, email format - XXXX@XX.XX
 
 To update user data, all fields are required.
 
-3. Send geolocation:
+**5. Send geolocation:**
 
 In the Info.plist file sets the permissions Privacy - Location Always and When In Use Usage Description and Privacy - Location When In Use Usage Description to read the geolocation.
 
@@ -245,6 +269,3 @@ Devino.shared.logger = { logStr in
    //do something 
 }
 ```
-
-
-
