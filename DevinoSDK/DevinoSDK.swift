@@ -715,7 +715,7 @@ public final class Devino: NSObject {
         request.httpMethod = meth.httpMethod
         var headers = request.allHTTPHeaderFields ?? [:]
         headers["Content-Type"] = "application/json"
-        headers["Authorization"] = configuration.key//X-Api-Key
+        headers["X-Api-Key"] = configuration.key//Authorization
         request.allHTTPHeaderFields = headers
         log("Headers: \(headers)")
 
