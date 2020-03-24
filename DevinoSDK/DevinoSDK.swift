@@ -117,24 +117,41 @@ public final class Devino: NSObject {
         makeRequest(.usersSubscribtion(subscribed: isSubscribe))
     }
     
-    public func getLastSubscriptionStatus(_ completionHandler: @escaping (Bool) -> Void) {
-        makeRequest(.usersSubscriptionStatus) { (data, response, error) in
-            if let error = error {
-                self.log("Error = \(error)")
-            }
-            if let data = data {
-                do {
-                    let jsonData = try JSONSerialization.jsonObject(with: data, options: []) as? [String: AnyObject]
-                    if let result = jsonData?["result"] as? Bool {
-                        self.log("Result last subscription = \(result)")
-                        completionHandler(result)
-                    } else {
-                        self.log("Error = \(String(describing: jsonData))")
-                    }
-                } catch {
-                    self.log("Could not parse data: \(error)")
+    public func getLastSubscriptionStatus(_ completionHandler: @escaping (Result<Bool, Error>) -> Void) {
+        makeRequest(.usersSubscriptionStatus) { [weak self] (data, response, error) in
+            guard let self = `self` else { return }
+            self.fetchSubscriptionStatus(data, response, error) { result in
+                switch result {
+                case .success(let result):
+                    completionHandler(.success(result))
+                case .failure(let error):
+                    completionHandler(.failure(error))
                 }
             }
+        }
+    }
+    
+    private func fetchSubscriptionStatus(_ data: Data?, _ response: HTTPURLResponse?, _ error: Error?, _ completionHandler: @escaping (Result<Bool, Error>) -> Void) {
+        if let error = error {
+            self.log("Error = \(error)")
+            completionHandler(.failure(error))
+        }
+        if let data = data {
+            do {
+                let jsonData = try JSONSerialization.jsonObject(with: data, options: []) as? [String: AnyObject]
+                if let result = jsonData?["result"] as? Bool {
+                    self.log("Result last subscription = \(result)")
+                    completionHandler(.success(result))
+                } else {
+                    self.log("Error = \(String(describing: jsonData))")
+                    completionHandler(.failure(ErrorHandler.failureJSONData))
+                }
+            } catch {
+                self.log("Could not parse data: \(error)")
+                completionHandler(.failure(error))
+            }
+        } else {
+            completionHandler(.failure(ErrorHandler.failureServerData))
         }
     }
     
@@ -891,7 +908,7 @@ extension Devino: CLLocationManagerDelegate {
 
 extension Devino: URLSessionDelegate {}
 
-//MARK: -ActionButtonModel:
+//MARK: -Models:
 
 public class ActionButton {
     var caption: String //name button
@@ -913,4 +930,9 @@ public enum Priority: String {
 public enum Badge: Int {
     case zero = 0
     case one = 1
+}
+
+private enum ErrorHandler: Error {
+    case failureJSONData
+    case failureServerData
 }
