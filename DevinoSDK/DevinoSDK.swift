@@ -92,9 +92,18 @@ public final class Devino: NSObject {
     }
     
     public func trackReceiveRemoteNotification(_ userInfo: [AnyHashable: Any]) {
-        guard Devino.isUserNotificationsAvailable,
-            let pushId = getPushId(userInfo),
-            let pushToken = Devino.pushToken else { return }
+        guard Devino.isUserNotificationsAvailable else {
+            log("User Notifications not available")
+            return
+        }
+        guard let pushId = getPushId(userInfo) else {
+            log("Push Id not found in aps")
+            return
+        }
+        guard let pushToken = Devino.pushToken  else {
+            log("Push Token not found")
+            return
+        }
         updateActionButtons(userInfo)
         log("PUSH DELIVERED: \(userInfo)")
         makeRequest(.pushEvent(pushToken: pushToken, pushId: pushId, actionType: .delivered, actionId: getNotificationActionId(userInfo)))
@@ -470,14 +479,18 @@ public final class Devino: NSObject {
     }
     
     private func getPushId(_ userInfo: [AnyHashable: Any]) -> Int64? {
-        //пересмотреть метод, когда получим реальный пуш
-        guard let val = userInfo["aps"],
-            let dic = val as? [AnyHashable: Any] else { return nil }
+        guard let val = userInfo["aps"], let dic = val as? [AnyHashable: Any] else {
+            log("Aps key not found in json")
+            return nil
+        }
         if let pushId = dic["pushId"] as? Int64 {
+            log("Push Id: \(pushId)")
             return pushId
         } else if let pushIdStr = dic["pushId"] as? String, let pushId = Int64(pushIdStr) {
+            log("Push Id: \(pushId)")
             return pushId
         } else {
+            log("Push Id not found or has unknown type")
             return nil
         }
     }
