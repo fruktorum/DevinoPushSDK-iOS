@@ -48,6 +48,7 @@ public final class Devino: NSObject {
     public static var shared = Devino()
     
     private static var pushToken: String? {
+        log("‼️ Push Token = \(String(describing: UserDefaults.standard.string(forKey: deviceTokenFlag)))")
         return UserDefaults.standard.string(forKey: deviceTokenFlag)
     }
     
@@ -70,11 +71,13 @@ public final class Devino: NSObject {
     
     public func trackAppLaunch() {
         log("PUSH TOKEN = \(String(describing: Devino.pushToken))")
-        guard Devino.pushToken != nil else { return }
-        getPermissionForPushNotifications { subscribed in
-            self.log("PUSH trackAppLaunch: \(subscribed)")
-            self.makeRequest(.usersAppStart)
+        if Devino.pushToken != nil {
+            getPermissionForPushNotifications { subscribed in
+                self.log("PUSH trackAppLaunch: \(subscribed)")
+                self.makeRequest(.usersAppStart)
+            }
         }
+        log("isSubscribedFlag: \(String(describing: UserDefaults.standard.value(forKey: Devino.isSubscribedFlag)))")
         if let existedIsSubscribedFlag = UserDefaults.standard.value(forKey:
             Devino.isSubscribedFlag) as? Bool, existedIsSubscribedFlag != UIApplication.shared.isRegisteredForRemoteNotifications  {
             log("SUBSCRIBED: \(Devino.isUserNotificationsAvailable))")
@@ -150,6 +153,7 @@ public final class Devino: NSObject {
                 let jsonData = try JSONSerialization.jsonObject(with: data, options: []) as? [String: AnyObject]
                 if let result = jsonData?["result"] as? Bool {
                     self.log("Result last subscription = \(result)")
+                    self.log("Result current subscription = \(Devino.isUserNotificationsAvailable)")
                     completionHandler(.success(result))
                 } else {
                     self.log("Error = \(String(describing: jsonData))")
@@ -499,6 +503,7 @@ public final class Devino: NSObject {
     private func getPermissionForPushNotifications(completion: @escaping (Bool) -> ()) {
         if #available(iOS 10.0, *) {
             UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { (granted, error) in
+                self.log("Get Permission For PushNotifications, granted = \(granted)")
                 self.trackNotificationPermissionsGranted(granted: granted)
                 completion(granted)
                 guard  granted  else { return }
@@ -514,6 +519,7 @@ public final class Devino: NSObject {
     private func trackNotificationPermissionsGranted(granted: Bool) {
         let val = UserDefaults.standard.value(forKey: Devino.isSubscribedFlag) as? Bool
         Devino.isUserNotificationsAvailable = granted
+        log("IsSubscribedFlag: \(String(describing: val)), Granted: \(granted)")
         guard  val != granted else { return }
         log("SUBSCRIBED: \(granted))")
         makeRequest(.usersSubscribtion(subscribed: granted))
