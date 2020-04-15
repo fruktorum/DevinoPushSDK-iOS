@@ -48,7 +48,7 @@ public final class Devino: NSObject {
     public static var shared = Devino()
     
     private static var pushToken: String? {
-        log("‼️ Push Token = \(String(describing: UserDefaults.standard.string(forKey: deviceTokenFlag)))")
+        print("Push Token = \(String(describing: UserDefaults.standard.string(forKey: deviceTokenFlag)))")
         return UserDefaults.standard.string(forKey: deviceTokenFlag)
     }
     
