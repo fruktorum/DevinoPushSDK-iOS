@@ -48,7 +48,6 @@ public final class Devino: NSObject {
     public static var shared = Devino()
     
     private static var pushToken: String? {
-        print("Push Token = \(String(describing: UserDefaults.standard.string(forKey: deviceTokenFlag)))")
         return UserDefaults.standard.string(forKey: deviceTokenFlag)
     }
     
@@ -67,25 +66,40 @@ public final class Devino: NSObject {
     
     public func activate(with config: Configuration) {
         configuration = config
+        log("Devino activate. Configurations received!")
     }
     
     public func trackAppLaunch() {
-        log("PUSH TOKEN = \(String(describing: Devino.pushToken))")
+        log("TrackAppLaunch")
+        log("Push token: \(String(describing: Devino.pushToken))")
+        
         if Devino.pushToken != nil {
             getPermissionForPushNotifications { subscribed in
-                self.log("PUSH trackAppLaunch: \(subscribed)")
+                self.log("Subscribed if Devino.pushToken != nil: \(subscribed)")
+                self.makeRequest(.usersAppStart)
+            }
+        } else {
+            if let token = UserDefaults.standard.string(forKey: Devino.deviceTokenFlag) {
+                log("Push token from UserDefaults: \(token)")
+            }
+        }
+        log("IsSubscribedFlag: \(String(describing: UserDefaults.standard.value(forKey: Devino.isSubscribedFlag)))")
+        log("Is the remote registration process completed successfully: \(UIApplication.shared.isRegisteredForRemoteNotifications)")
+        if let existedIsSubscribedFlag = UserDefaults.standard.value(forKey:
+            Devino.isSubscribedFlag) as? Bool, existedIsSubscribedFlag != UIApplication.shared.isRegisteredForRemoteNotifications {
+            log("Devino.isUserNotificationsAvailable: \(Devino.isUserNotificationsAvailable))")
+            makeRequest(.usersSubscribtion(subscribed: Devino.isUserNotificationsAvailable))
+        } else {
+            getPermissionForPushNotifications { subscribed in
+                self.log("Not found PermissionForPushNotifications, repeated the subscription request")
+                self.log("Subscribed if Devino.pushToken == nil: \(subscribed)")
                 self.makeRequest(.usersAppStart)
             }
         }
-        log("isSubscribedFlag: \(String(describing: UserDefaults.standard.value(forKey: Devino.isSubscribedFlag)))")
-        if let existedIsSubscribedFlag = UserDefaults.standard.value(forKey:
-            Devino.isSubscribedFlag) as? Bool, existedIsSubscribedFlag != UIApplication.shared.isRegisteredForRemoteNotifications  {
-            log("SUBSCRIBED: \(Devino.isUserNotificationsAvailable))")
-            makeRequest(.usersSubscribtion(subscribed: Devino.isUserNotificationsAvailable))
-        }
     }
     
-    public func trackLaunchWithOptions(_ options : [UIApplication.LaunchOptionsKey: Any]?) {
+    public func trackLaunchWithOptions(_ options: [UIApplication.LaunchOptionsKey: Any]?) {
+        log("TrackLaunchWithOptions")
         UIApplication.shared.applicationIconBadgeNumber = 0
         trackAppLaunch()
         if let time = configuration?.geoDataSendindInterval, time > 0, CLLocationManager.locationServicesEnabled() {
@@ -114,7 +128,7 @@ public final class Devino: NSObject {
     }
     
     public func trackNotificationResponse(_ response: UNNotificationResponse, _ actionId: String? = nil) {
-        //log("NOTIFICATION ACTION: \(response.actionIdentifier)")
+        log("TrackNotificationResponse")
         let userInfo = response.notification.request.content.userInfo
         guard let pushToken = Devino.pushToken, let pushId = getPushId(userInfo) else { return }
         log("PUSH OPENED by Identifier \(response.actionIdentifier): \n\(userInfo)\n")
@@ -126,10 +140,12 @@ public final class Devino: NSObject {
     }
     
     public func sendCurrentSubscriptionStatus(isSubscribe: Bool) {
+        log("SendCurrentSubscriptionStatus: \(isSubscribe)")
         makeRequest(.usersSubscribtion(subscribed: isSubscribe))
     }
     
     public func getLastSubscriptionStatus(_ completionHandler: @escaping (Result<Bool, Error>) -> Void) {
+        log("GetLastSubscriptionStatus")
         makeRequest(.usersSubscriptionStatus) { [weak self] (data, response, error) in
             guard let self = `self` else { return }
             self.fetchSubscriptionStatus(data, response, error) { result in
@@ -144,6 +160,7 @@ public final class Devino: NSObject {
     }
     
     private func fetchSubscriptionStatus(_ data: Data?, _ response: HTTPURLResponse?, _ error: Error?, _ completionHandler: @escaping (Result<Bool, Error>) -> Void) {
+        log("FetchSubscriptionStatus")
         if let error = error {
             self.log("Error = \(error)")
             completionHandler(.failure(error))
@@ -212,6 +229,7 @@ public final class Devino: NSObject {
                                    buttons: [ActionButton]? = nil,
                                    linkToMedia: String? = nil,
                                    action: String? = nil) {
+        log("Call GetPermissionForPushNotifications")
         getPermissionForPushNotifications { subscribed in
             if subscribed {
                 self.log("PUSH sendPushWithOption: \(subscribed)")
@@ -226,15 +244,16 @@ public final class Devino: NSObject {
     
     public func registerForNotification(_ deviceToken: Data) {
         let token = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
-        log("DEVICE TOKEN = \(token)")
+        log("New DeviceToken: \(token)")
         let existedToken = UserDefaults.standard.string(forKey: Devino.deviceTokenFlag)
-        
-        guard existedToken != token  else { return }
-        
+        log("ExistedToken: \(String(describing: existedToken))")
+//        guard existedToken != token  else { return }
         UserDefaults.standard.set(token, forKey: Devino.deviceTokenFlag)
         UserDefaults.standard.synchronize()
+        log("DeviceToken updated in UserDefaults")
         
         if existedToken == nil {
+            log("ExistedToken = nil, need to update UserData")
             makeRequest(.usersData(email: email, phone: phone, custom: [:]))
         }
     }
@@ -501,9 +520,10 @@ public final class Devino: NSObject {
     
     //MARK: -Permissions
     private func getPermissionForPushNotifications(completion: @escaping (Bool) -> ()) {
+        log("GetPermissionForPushNotifications")
         if #available(iOS 10.0, *) {
             UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { (granted, error) in
-                self.log("Get Permission For PushNotifications, granted = \(granted)")
+                self.log("Get Permission For PushNotifications with granted = \(granted)")
                 self.trackNotificationPermissionsGranted(granted: granted)
                 completion(granted)
                 guard  granted  else { return }
@@ -521,10 +541,10 @@ public final class Devino: NSObject {
         Devino.isUserNotificationsAvailable = granted
         log("IsSubscribedFlag: \(String(describing: val)), Granted: \(granted)")
         guard  val != granted else { return }
-        log("SUBSCRIBED: \(granted))")
         makeRequest(.usersSubscribtion(subscribed: granted))
         UserDefaults.standard.set(granted, forKey: Devino.isSubscribedFlag)
         UserDefaults.standard.synchronize()
+        log("If current SubscribedFlag != Granted, saved Granted with value: \(granted))")
     }
 
     func showPushPermissionMsg() {
@@ -568,7 +588,7 @@ public final class Devino: NSObject {
     }
     
 //MARK: -API
-    private enum APIMethod {
+    enum APIMethod {
         
         enum PushActionType: String {
             case delivered = "DELIVERED"
@@ -726,7 +746,7 @@ public final class Devino: NSObject {
     
 //MARK: -Make Request:
     
-    private func makeRequest(_ meth: APIMethod, _ completionHandler: ((Data?, HTTPURLResponse?, Error?) -> Void)? = nil) {
+    func makeRequest(_ meth: APIMethod, _ completionHandler: ((Data?, HTTPURLResponse?, Error?) -> Void)? = nil) {
         guard let configuration = configuration else {
             log("Not Configured")
             return }
