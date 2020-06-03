@@ -46,6 +46,8 @@ open class DevinoUNUserNotificationCenter: UIResponder, UIApplicationDelegate, U
             Devino.shared.trackNotificationResponse(response)
             if let actionButton = response.notification.request.content.userInfo["action"] as? [String: String], let action = actionButton["action"] {
                 actionForCustomDefault(action)
+            } else if let aps = response.notification.request.content.userInfo["aps"] as? [String: AnyObject], let action = aps["action"] as? String {
+                actionForCustomDefault(action)
             } else {
                 actionForDefault()
             }
