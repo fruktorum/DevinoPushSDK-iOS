@@ -109,6 +109,7 @@ public final class Devino: NSObject {
     }
     
     public func trackReceiveRemoteNotification(_ userInfo: [AnyHashable: Any]) {
+        updateActionButtons(userInfo)
         guard Devino.isUserNotificationsAvailable else {
             log("User Notifications not available")
             return
@@ -121,7 +122,7 @@ public final class Devino: NSObject {
             log("Push Token not found")
             return
         }
-        updateActionButtons(userInfo)
+        
         log("PUSH DELIVERED: \(userInfo)")
         makeRequest(.pushEvent(pushToken: pushToken, pushId: pushId, actionType: .delivered, actionId: getNotificationActionId(userInfo)))
 //        setLocationNotification(userInfo)
