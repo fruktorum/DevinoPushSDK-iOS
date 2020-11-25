@@ -9,27 +9,44 @@
 import UserNotifications
 
 open class DevinoNotificationService: UNNotificationServiceExtension {
-
+    
     private var contentHandler: ((UNNotificationContent) -> Void)?
-    private var bestAttemptContent: UNMutableNotificationContent?
+    private var originalContent: UNNotificationContent?
+    private var mutableContent: UNMutableNotificationContent?
+
+//    private var contentHandler: ((UNNotificationContent) -> Void)?
+//    private var bestAttemptContent: UNMutableNotificationContent?
 
     override open func didReceive(_ request: UNNotificationRequest, withContentHandler contentHandler: @escaping (UNNotificationContent) -> Void) {
+        
         self.contentHandler = contentHandler
-        bestAttemptContent = (request.content.mutableCopy() as? UNMutableNotificationContent)
+        self.originalContent = request.content
+        var result: UNNotificationContent = request.content
+        Devino.shared.trackReceiveRemoteNotification(request.content.userInfo)
         defer {
-            contentHandler(bestAttemptContent ?? request.content)
+            contentHandler(result)
         }
-
-        guard let attachment = request.attachment else { return }
-
-        bestAttemptContent?.attachments = [attachment]
+        //attachments:
+        guard let attachment = request.attachment, let mutableContent = (request.content.mutableCopy() as? UNMutableNotificationContent) else { return }
+        mutableContent.attachments = [attachment]
+        if mutableContent.copy() is UNNotificationContent {
+            result = mutableContent
+        }
+        
+//        defer {
+//            contentHandler(bestAttemptContent ?? request.content)
+//        }
+//        self.contentHandler = contentHandler
+//        bestAttemptContent = (request.content.mutableCopy() as? UNMutableNotificationContent)
+//        guard let attachment = request.attachment else { return }
+//        bestAttemptContent?.attachments = [attachment]
     }
     
     override open func serviceExtensionTimeWillExpire() {
         // Called just before the extension will be terminated by the system.
         // Use this as an opportunity to deliver your "best attempt" at modified content, otherwise the original push payload will be used.
-        if let contentHandler = contentHandler, let bestAttemptContent = bestAttemptContent {
-            contentHandler(bestAttemptContent)
+        if let originalContent = originalContent {
+            contentHandler?(originalContent)
         }
     }
 }
