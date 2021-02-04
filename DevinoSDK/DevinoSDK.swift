@@ -16,12 +16,18 @@ public final class Devino: NSObject {
     
     private static let deviceTokenFlag = "DevinoDeviceTokenFlag"
     private static let isSubscribedFlag = "DevinoIsSubscribedFlag"
+    private static let configKeyFlag = "configKeyFlag"
+    private static let apiRootUrl = "apiRootUrl"
+    private static let appGroupId = "appGroupId"
+    private static let appId = "appId"
  
     public struct Configuration {
-        // Апи ключ Devino (X-Api-Key )
+        // Апи ключ Devino (X-Api-Key)
         public let key: String
         // id PushApplication который выдаётся клиенту после регистрации приложения в ЛК
         public let applicationId: Int
+        // App Group identifier from Apple Developer Account
+        public let appGroupId: String
         // Интервал в минутах для обновления данных геолокации
         public let geoDataSendindInterval: Int
         // Сервер
@@ -29,9 +35,10 @@ public final class Devino: NSObject {
         // Порт
         public let apiRootPort: Int?
         
-        public init(key: String, applicationId: Int, geoDataSendindInterval: Int = 0, apiRootUrl: String = "integrationapi.net", apiRootPort: Int? = 6602) {
+        public init(key: String, applicationId: Int, appGroupId: String, geoDataSendindInterval: Int = 0, apiRootUrl: String = "integrationapi.net", apiRootPort: Int? = 6602) {
             self.key = key
             self.applicationId = applicationId
+            self.appGroupId = appGroupId
             self.geoDataSendindInterval = geoDataSendindInterval
             self.apiRootUrl = apiRootUrl
             self.apiRootPort = apiRootPort
@@ -48,7 +55,12 @@ public final class Devino: NSObject {
     public static var shared = Devino()
     
     private static var pushToken: String? {
-        return UserDefaults.standard.string(forKey: deviceTokenFlag)
+//        return UserDefaults.standard.string(forKey: deviceTokenFlag)
+        guard let userDefaults = UserDefaultsManager.userDefaults else {
+            print("❌ Error: UserDefaults in pushToken not found!")
+            return nil
+        }
+        return userDefaults.string(forKey: Devino.deviceTokenFlag)
     }
     
     private var configuration: Configuration? = nil
@@ -60,16 +72,36 @@ public final class Devino: NSObject {
         return locationManager
     }()
     private var timer: Timer? = nil
-    public static var isUserNotificationsAvailable = false
+    public static var isUserNotificationsAvailable: Bool {
+        guard let userDefaults = UserDefaultsManager.userDefaults else {
+            print("❌ Error: UserDefaults in isUserNotificationsAvailable not found!")
+            return false
+        }
+        return userDefaults.bool(forKey: Devino.isSubscribedFlag)
+    }
     
 //MARK: -Public:
     
     public func activate(with config: Configuration) {
         configuration = config
+        UserDefaultsManager.userDefaults = UserDefaults(suiteName: config.appGroupId)
+        if let userDefaults = UserDefaultsManager.userDefaults {
+            userDefaults.set(config.key, forKey: Devino.configKeyFlag)
+            userDefaults.set(config.apiRootUrl, forKey: Devino.apiRootUrl)
+            userDefaults.set(config.appGroupId, forKey: Devino.appGroupId)
+            userDefaults.set(config.applicationId, forKey: Devino.appId)
+            userDefaults.synchronize()
+        }
         log("Devino activate. Configurations received!")
     }
     
     public func trackAppLaunch() {
+        
+        guard let userDefaults = UserDefaultsManager.userDefaults else {
+            log("Error: UserDefaults not found!")
+            return
+        }
+        
         log("TrackAppLaunch")
         log("Push token: \(String(describing: Devino.pushToken))")
         
@@ -79,13 +111,13 @@ public final class Devino: NSObject {
                 self.makeRequest(.usersAppStart)
             }
         } else {
-            if let token = UserDefaults.standard.string(forKey: Devino.deviceTokenFlag) {
+            if let token = userDefaults.string(forKey: Devino.deviceTokenFlag) {
                 log("Push token from UserDefaults: \(token)")
             }
         }
-        log("IsSubscribedFlag: \(String(describing: UserDefaults.standard.value(forKey: Devino.isSubscribedFlag)))")
+        log("IsSubscribedFlag: \(String(describing: userDefaults.value(forKey: Devino.isSubscribedFlag)))")
         log("Is the remote registration process completed successfully: \(UIApplication.shared.isRegisteredForRemoteNotifications)")
-        if let existedIsSubscribedFlag = UserDefaults.standard.value(forKey:
+        if let existedIsSubscribedFlag = userDefaults.value(forKey:
             Devino.isSubscribedFlag) as? Bool, existedIsSubscribedFlag != UIApplication.shared.isRegisteredForRemoteNotifications {
             log("Devino.isUserNotificationsAvailable: \(Devino.isUserNotificationsAvailable))")
             makeRequest(.usersSubscribtion(subscribed: Devino.isUserNotificationsAvailable))
@@ -108,24 +140,44 @@ public final class Devino: NSObject {
         guard let notification = options?[UIApplication.LaunchOptionsKey.remoteNotification] as? [AnyHashable: Any], let _ = getPushId(notification) else  { return }
     }
     
-    public func trackReceiveRemoteNotification(_ userInfo: [AnyHashable: Any]) {
-        updateActionButtons(userInfo)
-        guard Devino.isUserNotificationsAvailable else {
-            log("User Notifications not available")
-            return
-        }
+    public func trackReceiveRemoteNotification(_ userInfo: [AnyHashable: Any], appGroupsId: String) {
+        UserDefaultsManager.userDefaults = UserDefaults(suiteName: appGroupsId)
+        
         guard let pushId = getPushId(userInfo) else {
             log("Push Id not found in aps")
             return
         }
-        guard let pushToken = Devino.pushToken  else {
+        guard let pushToken = Devino.pushToken else {
             log("Push Token not found")
             return
         }
-        
-        log("PUSH DELIVERED: \(userInfo)")
+        log("Push Id = \(pushId), Push Token = \(pushToken)")
         makeRequest(.pushEvent(pushToken: pushToken, pushId: pushId, actionType: .delivered, actionId: getNotificationActionId(userInfo)))
-//        setLocationNotification(userInfo)
+        print("!!! PUSH DELIVERED: \(userInfo)")
+        
+        if Devino.isUserNotificationsAvailable {
+            updateActionButtons(userInfo)
+        } else {
+            log("Error: isUserNotificationsAvailable FALSE!")
+        }
+        
+//        updateActionButtons(userInfo)
+//        guard Devino.isUserNotificationsAvailable else {
+//            log("User Notifications not available")
+//            return
+//        }
+//        guard let pushId = getPushId(userInfo) else {
+//            log("Push Id not found in aps")
+//            return
+//        }
+//        guard let pushToken = Devino.pushToken  else {
+//            log("Push Token not found")
+//            return
+//        }
+        
+//        log("PUSH DELIVERED: \(userInfo)")
+//        makeRequest(.pushEvent(pushToken: pushToken, pushId: pushId, actionType: .delivered, actionId: getNotificationActionId(userInfo)))
+////        setLocationNotification(userInfo)
     }
     
     public func trackNotificationResponse(_ response: UNNotificationResponse, _ actionId: String? = nil) {
@@ -246,11 +298,15 @@ public final class Devino: NSObject {
     public func registerForNotification(_ deviceToken: Data) {
         let token = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
         log("New DeviceToken: \(token)")
-        let existedToken = UserDefaults.standard.string(forKey: Devino.deviceTokenFlag)
+        guard let userDefaults = UserDefaultsManager.userDefaults else {
+            log("Error: UserDefaults in registerForNotification not found!")
+            return
+        }
+        let existedToken = userDefaults.string(forKey: Devino.deviceTokenFlag)
         log("ExistedToken: \(String(describing: existedToken))")
 //        guard existedToken != token  else { return }
-        UserDefaults.standard.set(token, forKey: Devino.deviceTokenFlag)
-        UserDefaults.standard.synchronize()
+        userDefaults.set(token, forKey: Devino.deviceTokenFlag)
+        userDefaults.synchronize()
         log("DeviceToken updated in UserDefaults")
         
         if existedToken == nil {
@@ -538,13 +594,17 @@ public final class Devino: NSObject {
     }
     
     private func trackNotificationPermissionsGranted(granted: Bool) {
-        let val = UserDefaults.standard.value(forKey: Devino.isSubscribedFlag) as? Bool
-        Devino.isUserNotificationsAvailable = granted
+        guard let userDefaults = UserDefaultsManager.userDefaults else {
+            log("Error: UserDefaults in trackNotificationPermissionsGranted not found!")
+            return
+        }
+        let val = userDefaults.value(forKey: Devino.isSubscribedFlag) as? Bool
+//        Devino.isUserNotificationsAvailable = granted
         log("IsSubscribedFlag: \(String(describing: val)), Granted: \(granted)")
         guard  val != granted else { return }
         makeRequest(.usersSubscribtion(subscribed: granted))
-        UserDefaults.standard.set(granted, forKey: Devino.isSubscribedFlag)
-        UserDefaults.standard.synchronize()
+        userDefaults.set(granted, forKey: Devino.isSubscribedFlag)
+        userDefaults.synchronize()
         log("If current SubscribedFlag != Granted, saved Granted with value: \(granted))")
     }
 
@@ -748,15 +808,23 @@ public final class Devino: NSObject {
 //MARK: -Make Request:
     
     func makeRequest(_ meth: APIMethod, _ completionHandler: ((Data?, HTTPURLResponse?, Error?) -> Void)? = nil) {
-        guard let configuration = configuration else {
-            log("Not Configured")
-            return }
-        guard let path = meth.path else { return }
-        let applicationId = configuration.applicationId
+    
+        guard let userDefaults = UserDefaultsManager.userDefaults else {
+            log("Error: UserDefaults in makeRequest not found!")
+            return
+        }
         
+//        guard let configuration = configuration else {
+//            log("Not Configured")
+//            return
+//        }
+        guard let path = meth.path else { return }
+        let applicationId = userDefaults.integer(forKey: Devino.appId) //configuration.applicationId
+    
         var urlComponents = URLComponents()
         urlComponents.scheme = "https"
-        urlComponents.host = configuration.apiRootUrl
+        let apiRootUrl = userDefaults.string(forKey: Devino.apiRootUrl)
+        urlComponents.host = apiRootUrl //configuration.apiRootUrl
         switch meth {
         case .usersSubscriptionStatus:
             urlComponents.path = "/push/\(path)"
@@ -766,13 +834,18 @@ public final class Devino: NSObject {
         default:
             urlComponents.path = "/push/\(path)"
         }
+        
         guard let url = urlComponents.url else { fatalError("Could not create URL from components") }
         
         var request = URLRequest(url: url)
         request.httpMethod = meth.httpMethod
+        request.allowsCellularAccess = true
         var headers = request.allHTTPHeaderFields ?? [:]
-        headers["Content-Type"] = "application/json"
-        headers["Authorization"] = configuration.key//X-Api-Key
+        
+        if let key = userDefaults.string(forKey: Devino.configKeyFlag) {
+            headers["Content-Type"] = "application/json"
+            headers["Authorization"] = "\(key)" //configuration.key //X-Api-Key
+        }
         request.allHTTPHeaderFields = headers
         log("Headers: \(headers)")
 
@@ -784,39 +857,85 @@ public final class Devino: NSObject {
                 break
             default:
                 if meth.apiType == "sdk" {
-                    params?["applicationId"] = configuration.applicationId
+                    params?["applicationId"] = applicationId //configuration.applicationId
                 } else if meth.apiType == "api" {
-                    params?["from"] = configuration.applicationId
+                    params?["from"] = applicationId//configuration.applicationId
                     apiParams = [params as Any]
                 }
                 request.httpBody = try JSONSerialization.data(withJSONObject: (meth.apiType == "sdk") ? (params as Any) : (apiParams as Any), options: JSONSerialization.WritingOptions())
             }
             
+            guard let appGroupId = userDefaults.string(forKey: Devino.appGroupId) else {
+                log("Error: makeRequest not found!")
+                return
+            }
+            
+            //-----
+            
+//            let configBackground = URLSessionConfiguration.background(withIdentifier: "BackgroundSessionDevino")
+//            configBackground.sharedContainerIdentifier = appGroupId
+//            configBackground.allowsCellularAccess = true
+//            configBackground.waitsForConnectivity = true
+//
+//            if #available(iOS 13.0, *) {
+//                configBackground.allowsConstrainedNetworkAccess = true
+//                configBackground.allowsExpensiveNetworkAccess = true
+//            }
+//
+//            let count = requestCounter
+//            requestCounter += 1
+//
+//            if let url = request.url?.absoluteURL {
+//                log("Request(\(count)): url[\(url)]")
+//            }
+//            if let body = request.httpBody {
+//                log("Body data: \(String(data: body, encoding: .utf8) ?? "no body data")")
+//            }
+//
+//            URLSession(configuration: configBackground, delegate: self, delegateQueue: nil).uploadTask(withStreamedRequest: request).resume()
+            
+            
+            
+            //-----
+            
             // Create and run a URLSession data task with our JSON encoded POST request
             let config = URLSessionConfiguration.default
+            config.sharedContainerIdentifier = appGroupId
+            config.allowsCellularAccess = true
+//            config.waitsForConnectivity = true
+
+            if #available(iOS 13.0, *) {
+                config.allowsConstrainedNetworkAccess = true
+                config.allowsExpensiveNetworkAccess = true
+            }
             let session = URLSession(configuration: config)
-            
             let count = requestCounter
             requestCounter += 1
             if let url = request.url?.absoluteURL {
+                print("Request(\(count)): url[\(url)]")
                 log("Request(\(count)): url[\(url)]")
             }
             if let body = request.httpBody {
+                print("Body data: \(String(data: body, encoding: .utf8) ?? "no body data")")
                 log("Body data: \(String(data: body, encoding: .utf8) ?? "no body data")")
             }
-            let task = session.dataTask(with: request) {[weak self] (responseData, response, responseError) in
+            let task = session.dataTask(with: request) { [weak self] (responseData, response, responseError) in
                 DispatchQueue.main.async {
                     let httpResponse = response as? HTTPURLResponse
                     // APIs usually respond with the data you just sent in your POST request
                     if let data = responseData, let utf8Representation = String(data: data, encoding: .utf8) {
+                        print("Response(\(count)):[\(String(describing: httpResponse?.statusCode))]: \(utf8Representation)")
                         self?.log("Response(\(count)):[\(String(describing: httpResponse?.statusCode))]: \(utf8Representation)")
                         completionHandler?(data, httpResponse, nil)
                     } else if let error = responseError {
+                        print("Response Error = \(error.localizedDescription))")
+                        print("Response(\(count)):[\(String(describing: httpResponse?.statusCode))]: no readable data received in response")
+
                         self?.log("Response Error = \(error.localizedDescription))")
                         self?.log("Response(\(count)):[\(String(describing: httpResponse?.statusCode))]: no readable data received in response")
                         completionHandler?(nil, nil, error)
                     }
-                    
+
                     if httpResponse == nil || httpResponse?.statusCode == 500 {
                         self?.needRepeatRequest(request: request)
                         return
@@ -831,6 +950,52 @@ public final class Devino: NSObject {
             log("Error: \(error)")
         }
     }
+    
+    //----
+//    public func urlSession(_ session: URLSession, taskIsWaitingForConnectivity task: URLSessionTask) {
+//        print("➡️ Wait connect \(task.response?.url?.absoluteString ?? "url")")
+//    }
+//
+//    public func urlSession(_ session: URLSession, task: URLSessionTask, willBeginDelayedRequest request: URLRequest, completionHandler: @escaping (URLSession.DelayedRequestDisposition, URLRequest?) -> Void) {
+//        completionHandler(.continueLoading, request)
+//    }
+//
+//    public func urlSession(_ session: URLSession, task: URLSessionTask, didSendBodyData bytesSent: Int64, totalBytesSent: Int64, totalBytesExpectedToSend: Int64) {
+//        print("➡️ DidSendBodyData \(task.currentRequest?.url?.absoluteString ?? "url")")
+//    }
+//
+//    public func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
+//        if let httpResponse = dataTask.response as? HTTPURLResponse, let utf8Representation = String(data: data, encoding: .utf8) {
+//            dataTask.cancel()
+//            print("✅ SUCCESS")
+//            print("Response:[\(String(describing: httpResponse.statusCode))]: \(utf8Representation)")
+//            // APIs usually respond with the data you just sent in your POST request
+////            if let utf8Representation = String(data: data, encoding: .utf8) {
+////                print("Response:[\(String(describing: httpResponse.statusCode))]: \(utf8Representation)")
+////                self?.log("Response(\(count)):[\(String(describing: httpResponse?.statusCode))]: \(utf8Representation)")
+////                completionHandler?(data, httpResponse, nil)
+////            }
+//        }
+//    }
+//
+//    public func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+//        if let error = error {
+//            print("ERROR: \(error)")
+//            let httpResponse = task.response as? HTTPURLResponse
+//            if let request = task.currentRequest {
+//                //repeat request if needed
+//                if httpResponse == nil || httpResponse?.statusCode == 500 {
+//                    print("❗️Need Repeat Request")
+//                    self.needRepeatRequest(request: request)
+//                    return
+//                } else if let statusCode = httpResponse?.statusCode, statusCode > 299 {
+//                    self.needRepeatRequest(request: request)
+//                    return
+//                }
+//            }
+//        }
+//    }
+    //----
     
 //MARK: -Make Repeate Request:
     
@@ -975,4 +1140,10 @@ public enum Badge: Int {
 private enum ErrorHandler: Error {
     case failureJSONData
     case failureServerData
+}
+
+ //MARK: -UserDefaults
+
+public class UserDefaultsManager: NSObject {
+    public static var userDefaults: UserDefaults?
 }

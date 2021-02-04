@@ -13,16 +13,17 @@ open class DevinoNotificationService: UNNotificationServiceExtension {
     private var contentHandler: ((UNNotificationContent) -> Void)?
     private var originalContent: UNNotificationContent?
     private var mutableContent: UNMutableNotificationContent?
+    
+    open var appGroupsId: String? {
+        get { return nil }
+    }
 
-//    private var contentHandler: ((UNNotificationContent) -> Void)?
-//    private var bestAttemptContent: UNMutableNotificationContent?
-
-    override open func didReceive(_ request: UNNotificationRequest, withContentHandler contentHandler: @escaping (UNNotificationContent) -> Void) {
-        
+    open override func didReceive(_ request: UNNotificationRequest, withContentHandler contentHandler: @escaping (UNNotificationContent) -> Void) {
         self.contentHandler = contentHandler
         self.originalContent = request.content
         var result: UNNotificationContent = request.content
-        Devino.shared.trackReceiveRemoteNotification(request.content.userInfo)
+        Devino.shared.log("✅ Did receive push notification: \(request.content.userInfo)")
+        Devino.shared.trackReceiveRemoteNotification(request.content.userInfo, appGroupsId: appGroupsId ?? "")
         defer {
             contentHandler(result)
         }
@@ -32,14 +33,6 @@ open class DevinoNotificationService: UNNotificationServiceExtension {
         if mutableContent.copy() is UNNotificationContent {
             result = mutableContent
         }
-        
-//        defer {
-//            contentHandler(bestAttemptContent ?? request.content)
-//        }
-//        self.contentHandler = contentHandler
-//        bestAttemptContent = (request.content.mutableCopy() as? UNMutableNotificationContent)
-//        guard let attachment = request.attachment else { return }
-//        bestAttemptContent?.attachments = [attachment]
     }
     
     override open func serviceExtensionTimeWillExpire() {
@@ -53,28 +46,25 @@ open class DevinoNotificationService: UNNotificationServiceExtension {
 
 extension UNNotificationRequest {
     var attachment: UNNotificationAttachment? {
-        guard let attachmentURL = content.userInfo["linkToMedia"] as? String, let imageData = try? Data(contentsOf: URL(string: attachmentURL)!) else {
-            return nil
-        }
+        guard let attachmentURL = content.userInfo["linkToMedia"] as? String, let imageData = try? Data(contentsOf: URL(string: attachmentURL)!) else { return nil }
         let format = getFormat(url: attachmentURL)
-            return try? UNNotificationAttachment(data: imageData, options: nil, format: format)
-        }
+        return try? UNNotificationAttachment(data: imageData, options: nil, format: format)
+    }
         
-        private func getFormat(url: String) -> String {
-            let formats = [".aiff", ".wav", ".mp3", ".m4a", ".jpg", ".jpeg", ".gif", ".png", ".mpg", ".mpeg", ".mpeg2", ".mp4", ".avi"]
-            var format = ".jpg"
-            let suffixUrl = url.suffix(5)
-            formats.forEach{ formatName in
-                if suffixUrl.contains(formatName) {
-                    format = formatName
-                }
+    private func getFormat(url: String) -> String {
+        let formats = [".aiff", ".wav", ".mp3", ".m4a", ".jpg", ".jpeg", ".gif", ".png", ".mpg", ".mpeg", ".mpeg2", ".mp4", ".avi"]
+        var format = ".jpg"
+        let suffixUrl = url.suffix(5)
+        formats.forEach{ formatName in
+            if suffixUrl.contains(formatName) {
+                format = formatName
             }
-            return format
         }
+        return format
+    }
 }
 
 extension UNNotificationAttachment {
-
     convenience init(data: Data, options: [AnyHashable: Any]?, format: String) throws {
         let fileManager = FileManager.default
         let temporaryFolderName = ProcessInfo.processInfo.globallyUniqueString
