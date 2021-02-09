@@ -670,7 +670,7 @@ public final class Devino: NSObject {
         request.httpMethod = meth.httpMethod
         request.allowsCellularAccess = true
         var headers = request.allHTTPHeaderFields ?? [:]
-        
+      
         if let key = userDefaults.string(forKey: Devino.configKeyFlag) {
             headers["Content-Type"] = "application/json"
             headers["Authorization"] = "\(key)"  //X-Api-Key
