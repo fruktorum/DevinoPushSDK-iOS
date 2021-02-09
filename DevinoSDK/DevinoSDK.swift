@@ -57,7 +57,7 @@ public final class Devino: NSObject {
     private static var pushToken: String? {
 //        return UserDefaults.standard.string(forKey: deviceTokenFlag)
         guard let userDefaults = UserDefaultsManager.userDefaults else {
-            print("❌ Error: UserDefaults in pushToken not found!")
+            print("Error: UserDefaults in pushToken not found!")
             return nil
         }
         return userDefaults.string(forKey: Devino.deviceTokenFlag)
@@ -74,7 +74,7 @@ public final class Devino: NSObject {
     private var timer: Timer? = nil
     public static var isUserNotificationsAvailable: Bool {
         guard let userDefaults = UserDefaultsManager.userDefaults else {
-            print("❌ Error: UserDefaults in isUserNotificationsAvailable not found!")
+            print("Error: UserDefaults in isUserNotificationsAvailable not found!")
             return false
         }
         return userDefaults.bool(forKey: Devino.isSubscribedFlag)
@@ -153,7 +153,7 @@ public final class Devino: NSObject {
         }
         log("Push Id = \(pushId), Push Token = \(pushToken)")
         makeRequest(.pushEvent(pushToken: pushToken, pushId: pushId, actionType: .delivered, actionId: getNotificationActionId(userInfo)))
-        print("!!! PUSH DELIVERED: \(userInfo)")
+        print("PUSH DELIVERED: \(userInfo)")
         
         if Devino.isUserNotificationsAvailable {
             updateActionButtons(userInfo)
@@ -813,18 +813,13 @@ public final class Devino: NSObject {
             log("Error: UserDefaults in makeRequest not found!")
             return
         }
-        
-//        guard let configuration = configuration else {
-//            log("Not Configured")
-//            return
-//        }
         guard let path = meth.path else { return }
-        let applicationId = userDefaults.integer(forKey: Devino.appId) //configuration.applicationId
+        let applicationId = userDefaults.integer(forKey: Devino.appId)
     
         var urlComponents = URLComponents()
         urlComponents.scheme = "https"
         let apiRootUrl = userDefaults.string(forKey: Devino.apiRootUrl)
-        urlComponents.host = apiRootUrl //configuration.apiRootUrl
+        urlComponents.host = apiRootUrl
         switch meth {
         case .usersSubscriptionStatus:
             urlComponents.path = "/push/\(path)"
@@ -844,7 +839,7 @@ public final class Devino: NSObject {
         
         if let key = userDefaults.string(forKey: Devino.configKeyFlag) {
             headers["Content-Type"] = "application/json"
-            headers["Authorization"] = "\(key)" //configuration.key //X-Api-Key
+            headers["Authorization"] = "\(key)"  //X-Api-Key
         }
         request.allHTTPHeaderFields = headers
         log("Headers: \(headers)")
@@ -857,9 +852,9 @@ public final class Devino: NSObject {
                 break
             default:
                 if meth.apiType == "sdk" {
-                    params?["applicationId"] = applicationId //configuration.applicationId
+                    params?["applicationId"] = applicationId
                 } else if meth.apiType == "api" {
-                    params?["from"] = applicationId//configuration.applicationId
+                    params?["from"] = applicationId
                     apiParams = [params as Any]
                 }
                 request.httpBody = try JSONSerialization.data(withJSONObject: (meth.apiType == "sdk") ? (params as Any) : (apiParams as Any), options: JSONSerialization.WritingOptions())
@@ -912,11 +907,9 @@ public final class Devino: NSObject {
             let count = requestCounter
             requestCounter += 1
             if let url = request.url?.absoluteURL {
-                print("Request(\(count)): url[\(url)]")
                 log("Request(\(count)): url[\(url)]")
             }
             if let body = request.httpBody {
-                print("Body data: \(String(data: body, encoding: .utf8) ?? "no body data")")
                 log("Body data: \(String(data: body, encoding: .utf8) ?? "no body data")")
             }
             let task = session.dataTask(with: request) { [weak self] (responseData, response, responseError) in
@@ -924,13 +917,9 @@ public final class Devino: NSObject {
                     let httpResponse = response as? HTTPURLResponse
                     // APIs usually respond with the data you just sent in your POST request
                     if let data = responseData, let utf8Representation = String(data: data, encoding: .utf8) {
-                        print("Response(\(count)):[\(String(describing: httpResponse?.statusCode))]: \(utf8Representation)")
                         self?.log("Response(\(count)):[\(String(describing: httpResponse?.statusCode))]: \(utf8Representation)")
                         completionHandler?(data, httpResponse, nil)
                     } else if let error = responseError {
-                        print("Response Error = \(error.localizedDescription))")
-                        print("Response(\(count)):[\(String(describing: httpResponse?.statusCode))]: no readable data received in response")
-
                         self?.log("Response Error = \(error.localizedDescription))")
                         self?.log("Response(\(count)):[\(String(describing: httpResponse?.statusCode))]: no readable data received in response")
                         completionHandler?(nil, nil, error)
@@ -950,52 +939,6 @@ public final class Devino: NSObject {
             log("Error: \(error)")
         }
     }
-    
-    //----
-//    public func urlSession(_ session: URLSession, taskIsWaitingForConnectivity task: URLSessionTask) {
-//        print("➡️ Wait connect \(task.response?.url?.absoluteString ?? "url")")
-//    }
-//
-//    public func urlSession(_ session: URLSession, task: URLSessionTask, willBeginDelayedRequest request: URLRequest, completionHandler: @escaping (URLSession.DelayedRequestDisposition, URLRequest?) -> Void) {
-//        completionHandler(.continueLoading, request)
-//    }
-//
-//    public func urlSession(_ session: URLSession, task: URLSessionTask, didSendBodyData bytesSent: Int64, totalBytesSent: Int64, totalBytesExpectedToSend: Int64) {
-//        print("➡️ DidSendBodyData \(task.currentRequest?.url?.absoluteString ?? "url")")
-//    }
-//
-//    public func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
-//        if let httpResponse = dataTask.response as? HTTPURLResponse, let utf8Representation = String(data: data, encoding: .utf8) {
-//            dataTask.cancel()
-//            print("✅ SUCCESS")
-//            print("Response:[\(String(describing: httpResponse.statusCode))]: \(utf8Representation)")
-//            // APIs usually respond with the data you just sent in your POST request
-////            if let utf8Representation = String(data: data, encoding: .utf8) {
-////                print("Response:[\(String(describing: httpResponse.statusCode))]: \(utf8Representation)")
-////                self?.log("Response(\(count)):[\(String(describing: httpResponse?.statusCode))]: \(utf8Representation)")
-////                completionHandler?(data, httpResponse, nil)
-////            }
-//        }
-//    }
-//
-//    public func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-//        if let error = error {
-//            print("ERROR: \(error)")
-//            let httpResponse = task.response as? HTTPURLResponse
-//            if let request = task.currentRequest {
-//                //repeat request if needed
-//                if httpResponse == nil || httpResponse?.statusCode == 500 {
-//                    print("❗️Need Repeat Request")
-//                    self.needRepeatRequest(request: request)
-//                    return
-//                } else if let statusCode = httpResponse?.statusCode, statusCode > 299 {
-//                    self.needRepeatRequest(request: request)
-//                    return
-//                }
-//            }
-//        }
-//    }
-    //----
     
 //MARK: -Make Repeate Request:
     
