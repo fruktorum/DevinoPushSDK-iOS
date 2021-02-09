@@ -11,6 +11,7 @@
 - Creating an Explicit App ID in [Identifiers](https://developer.apple.com/account/resources/identifiers/list)
 - Generating a new APNs certificate for your application in [Certificates](https://developer.apple.com/account/resources/certificates/list)
 - Creating the Development and Distribution Provisioning Profile in [Profiles](https://developer.apple.com/account/resources/profiles/list)
+- Creating the App Group ID in [Identifiers -> AppGroups](https://developer.apple.com/account/resources/identifiers/list/applicationGroup) (AppGroupID is required for your application and NotificationExtension to exchange important data through a common data container, remember this ID for further integration steps) 
 
 ### Adding DevinoSDK to your Xcode project
 1.  Move **DevinoSDK.framework** to the Frameworks project folder:
@@ -39,8 +40,24 @@
 2. Connection **DevinoNotificationService**:
 
 ```swift
-class NotificationService: DevinoNotificationService {}
+import DevinoSDK
+import UserNotifications
+
+class NotificationService: DevinoNotificationService {
+    
+    override var appGroupsId: String? {
+        return "group.com.fruktorum.DevinoPush"
+    }
+    
+    override func didReceive(_ request: UNNotificationRequest, withContentHandler contentHandler: @escaping (UNNotificationContent) -> Void) {
+        super.didReceive(request, withContentHandler: contentHandler)
+        // Your code
+    }
+}
 ```
+3. Add AppGroups in Signing & Capabilities for project targets and NotificationService
+4. While debugging the NotificationService, make sure you have started the project correctly. You should build and run the NotificationService extension schema. 
+
 **Notification Service Extension** needed to modify the contents of notifications (for example, to display pictures in notifications).
 
 ### Configuring DevinoSDK in AppDelegate:
@@ -53,7 +70,13 @@ import DevinoSDK
 ```swift
 let devinoUNUserNotificationCenter = DevinoUNUserNotificationCenter()
 ```
-**3. Making settings in the ***didFinishLaunchingWithOptions*** method:**
+
+**3. Setting the AppGroupID previously created in Apple Developer Account (appGroupId):**
+```swift
+let appGroupId = "group.com.fruktorum.DevinoPush" //example
+```
+
+**4. Making settings in the ***didFinishLaunchingWithOptions*** method:**
 
 Add the Devino API key (key) and the PushApplication identifier (applicationId), which are issued after registering your application in your personal account.
 Also, you can specify the interval for updating geolocation data in minutes (geoDataSendindInterval). The default is 0 minutes - never transfer data.
@@ -63,7 +86,7 @@ Example didFinishLaunchingWithOptions:
 ```swift
 func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplicationLaunchOptionsKey: Any]?) -> Bool {
 // set Devino configurations:
-    let config = Devino.Configuration(key: "<key>", applicationId: <id>, geoDataSendindInterval: 1)
+    let config = Devino.Configuration(key: "<key>", applicationId: <id>, appGroupId: <appGroupId>, geoDataSendindInterval: 1)
     Devino.shared.activate(with: config)
     Devino.shared.trackLaunchWithOptions(launchOptions)
 // registration process with Apple Push Notification service:
@@ -71,14 +94,14 @@ func application(_ application: UIApplication, didFinishLaunchingWithOptions lau
     return true
  }
 ```
-**4. In the ***didFinishLaunchingWithOptions*** method, assign the delegate object to the UNUserNotificationCenter object:**
+**5. In the ***didFinishLaunchingWithOptions*** method, assign the delegate object to the UNUserNotificationCenter object:**
 
 ```swift
 // assign delegate object to the UNUserNotificationCenter object:
     UNUserNotificationCenter.current().delegate = devinoUNUserNotificationCenter
 ```
 
-**5. Handlers of Action buttons in notifications:**
+**6. Handlers of Action buttons in notifications:**
 
 ```swift
 devinoUNUserNotificationCenter.setActionForUrl { url in
@@ -95,7 +118,7 @@ devinoUNUserNotificationCenter.setActionForCustomDefault { action in
 }
 ```
 
-**6. Authentification with deviceToken:**
+**7. Authentification with deviceToken:**
 
 ```swift
 func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
@@ -103,7 +126,7 @@ func application(_ application: UIApplication, didRegisterForRemoteNotifications
 }
 ```
 
-**7. Tracking subscription status:**
+**8. Tracking subscription status:**
 
 ```swift
 func applicationWillEnterForeground(_ application: UIApplication) {
@@ -111,7 +134,7 @@ func applicationWillEnterForeground(_ application: UIApplication) {
 }
 ```
 
-**8. Tracking application termination:**
+**9. Tracking application termination:**
 
 ```swift
 func applicationWillTerminate(_ application: UIApplication) {
@@ -119,7 +142,7 @@ func applicationWillTerminate(_ application: UIApplication) {
 }
 ```
 
-**9. Receive Remote Notifications:**
+**10. Receive Remote Notifications:**
 ```swift
 public func application(_ application: UIApplication, didReceiveRemoteNotification userInfo: [AnyHashable : Any], fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
     Devino.shared.trackReceiveRemoteNotification(userInfo)
@@ -127,7 +150,7 @@ public func application(_ application: UIApplication, didReceiveRemoteNotificati
 }
 ```
 
-**10. Tracking Local Notifications:**
+**11. Tracking Local Notifications:**
 ```swift
 func application(_ application: UIApplication, handleActionWithIdentifier identifier: String?, for notification: UILocalNotification, completionHandler: @escaping () -> Void) {
     Devino.shared.trackLocalNotification(notification, with: identifier)
