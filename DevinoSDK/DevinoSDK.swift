@@ -55,9 +55,7 @@ public final class Devino: NSObject {
     public static var shared = Devino()
     
     private static var pushToken: String? {
-//        return UserDefaults.standard.string(forKey: deviceTokenFlag)
         guard let userDefaults = UserDefaultsManager.userDefaults else {
-            print("Error: UserDefaults in pushToken not found!")
             return nil
         }
         return userDefaults.string(forKey: Devino.deviceTokenFlag)
@@ -74,7 +72,6 @@ public final class Devino: NSObject {
     private var timer: Timer? = nil
     public static var isUserNotificationsAvailable: Bool {
         guard let userDefaults = UserDefaultsManager.userDefaults else {
-            print("Error: UserDefaults in isUserNotificationsAvailable not found!")
             return false
         }
         return userDefaults.bool(forKey: Devino.isSubscribedFlag)
@@ -97,10 +94,7 @@ public final class Devino: NSObject {
     
     public func trackAppLaunch() {
         
-        guard let userDefaults = UserDefaultsManager.userDefaults else {
-            log("Error: UserDefaults not found!")
-            return
-        }
+        guard let userDefaults = UserDefaultsManager.userDefaults else { return }
         
         log("TrackAppLaunch")
         log("Push token: \(String(describing: Devino.pushToken))")
@@ -115,7 +109,6 @@ public final class Devino: NSObject {
                 log("Push token from UserDefaults: \(token)")
             }
         }
-        log("IsSubscribedFlag: \(String(describing: userDefaults.value(forKey: Devino.isSubscribedFlag)))")
         log("Is the remote registration process completed successfully: \(UIApplication.shared.isRegisteredForRemoteNotifications)")
         if let existedIsSubscribedFlag = userDefaults.value(forKey:
             Devino.isSubscribedFlag) as? Bool, existedIsSubscribedFlag != UIApplication.shared.isRegisteredForRemoteNotifications {
@@ -123,7 +116,6 @@ public final class Devino: NSObject {
             makeRequest(.usersSubscribtion(subscribed: Devino.isUserNotificationsAvailable))
         } else {
             getPermissionForPushNotifications { subscribed in
-                self.log("Not found PermissionForPushNotifications, repeated the subscription request")
                 self.log("Subscribed if Devino.pushToken == nil: \(subscribed)")
                 self.makeRequest(.usersAppStart)
             }
@@ -153,38 +145,19 @@ public final class Devino: NSObject {
         }
         log("Push Id = \(pushId), Push Token = \(pushToken)")
         makeRequest(.pushEvent(pushToken: pushToken, pushId: pushId, actionType: .delivered, actionId: getNotificationActionId(userInfo)))
-        print("PUSH DELIVERED: \(userInfo)")
+        log("Push DELIVERED: \(userInfo)")
         
         if Devino.isUserNotificationsAvailable {
             updateActionButtons(userInfo)
         } else {
             log("Error: isUserNotificationsAvailable FALSE!")
         }
-        
-//        updateActionButtons(userInfo)
-//        guard Devino.isUserNotificationsAvailable else {
-//            log("User Notifications not available")
-//            return
-//        }
-//        guard let pushId = getPushId(userInfo) else {
-//            log("Push Id not found in aps")
-//            return
-//        }
-//        guard let pushToken = Devino.pushToken  else {
-//            log("Push Token not found")
-//            return
-//        }
-        
-//        log("PUSH DELIVERED: \(userInfo)")
-//        makeRequest(.pushEvent(pushToken: pushToken, pushId: pushId, actionType: .delivered, actionId: getNotificationActionId(userInfo)))
-////        setLocationNotification(userInfo)
     }
     
     public func trackNotificationResponse(_ response: UNNotificationResponse, _ actionId: String? = nil) {
-        log("TrackNotificationResponse")
         let userInfo = response.notification.request.content.userInfo
         guard let pushToken = Devino.pushToken, let pushId = getPushId(userInfo) else { return }
-        log("PUSH OPENED by Identifier \(response.actionIdentifier): \n\(userInfo)\n")
+        log("Push OPENED by Identifier \(response.actionIdentifier): \n\(userInfo)\n")
         makeRequest(.pushEvent(pushToken: pushToken, pushId: pushId, actionType: .opened, actionId: actionId != nil ? actionId : getNotificationActionId(userInfo)))
     }
     
@@ -238,15 +211,6 @@ public final class Devino: NSObject {
         }
     }
     
-//    // For ios <10
-//    public func trackLocalNotification(_ notification: UILocalNotification, with identifier: String? ) {
-//        log("NOTIFICATION ACTION: \(identifier)")
-//
-//        guard let ui = notification.userInfo, let pushId = getPushId(ui), let pushToken = Devino.pushToken else { return }
-//
-//        makeRequest(.pushEvent(pushToken: pushToken, pushId: pushId, actionType: .opened, actionId: (identifier == nil ? getNotificationActionId(ui) : identifier)))
-//    }
-    
     //MARK: User Data:
     public func setUserData(phone: String?, email: String?) {
         self.email = email
@@ -256,10 +220,10 @@ public final class Devino: NSObject {
     
     //MARK: Geo Data:
     public func sendPushWithLocation() {
+        log("SendPushWithLocation")
         isSendPush = true
         locManager.desiredAccuracy = kCLLocationAccuracyBest
         locManager.requestAlwaysAuthorization()
-        log("SEND PUSH WITH LOCATION")
         Devino.shared.startUpdateLocation()
     }
     
@@ -282,7 +246,8 @@ public final class Devino: NSObject {
                                    buttons: [ActionButton]? = nil,
                                    linkToMedia: String? = nil,
                                    action: String? = nil) {
-        log("Call GetPermissionForPushNotifications")
+        log("SendPushNotification")
+        log("GetPermissionForPushNotifications")
         getPermissionForPushNotifications { subscribed in
             if subscribed {
                 self.log("PUSH sendPushWithOption: \(subscribed)")
@@ -304,11 +269,9 @@ public final class Devino: NSObject {
         }
         let existedToken = userDefaults.string(forKey: Devino.deviceTokenFlag)
         log("ExistedToken: \(String(describing: existedToken))")
-//        guard existedToken != token  else { return }
         userDefaults.set(token, forKey: Devino.deviceTokenFlag)
         userDefaults.synchronize()
         log("DeviceToken updated in UserDefaults")
-        
         if existedToken == nil {
             log("ExistedToken = nil, need to update UserData")
             makeRequest(.usersData(email: email, phone: phone, custom: [:]))
@@ -328,10 +291,10 @@ public final class Devino: NSObject {
     
     //MARK: Geo Data:
     private func trackLocation() {
+        log("Track location")
         guard let time = configuration?.geoDataSendindInterval, time > 0 else { return }
         locManager.desiredAccuracy = kCLLocationAccuracyBest
         locManager.requestAlwaysAuthorization()
-        log("TRACK LOCATION")
         Devino.shared.startUpdateLocation()
         timer = Timer.scheduledTimer(timeInterval: TimeInterval(time * 60), target: self, selector: (#selector(Devino.shared.startUpdateLocation)), userInfo: nil, repeats: true)
     }
@@ -390,131 +353,6 @@ public final class Devino: NSObject {
         return apnsOptions.isEmpty ? nil : apnsOptions
     }
     
-//    private func notificationIOS9AppIsActive(_ userInfo: [AnyHashable: Any]) {
-//        guard UIApplication.shared.applicationState == .active else { return }
-//
-//        guard let val = userInfo["aps"],
-//            let dic = val as? [AnyHashable: Any],
-//            let devino = dic["devino"] as? [String: Any],
-//            let alert = dic["alert"] as? [String: Any],
-//            let pushId = getPushId(userInfo),
-//            let pushToken = Devino.pushToken
-//            else { return }
-//
-//        let alertVC = UIAlertController(title: alert.string("title"), message: alert.string("body"), preferredStyle: UIAlertController.Style.alert)
-//
-//        if let actions = devino["actions"] as? [[String: String]]  {
-//            for act in actions {
-//                guard let title = act.string("title"), let actIdent = act.string("action") else { continue }
-//
-//                let notAct = UIAlertAction(title: title, style: .default, handler: { _ in
-//                    self.log("PUSH RECIVED: \(userInfo)")
-//                    self.makeRequest(.pushEvent(pushToken: pushToken, pushId: pushId, actionType: .opened, actionId: actIdent))
-//                })
-//                alertVC.addAction(notAct)
-//            }
-//        }
-//
-//        alertVC.addAction(UIAlertAction(title: "Закрыть", style: .cancel, handler: nil))
-//
-//        UIApplication.shared.keyWindow?.rootViewController?.present(alertVC, animated: true, completion: {
-//            self.log("PUSH RECIVED: \(userInfo)")
-//            self.makeRequest(.pushEvent(pushToken: pushToken, pushId: pushId, actionType: .delivered, actionId: nil))
-//        })
-//    }
-    
-//    private func setLocationNotification(_ userInfo: [AnyHashable: Any]) {
-//        guard let val = userInfo["aps"],
-//            let dic = val as? [AnyHashable: Any],
-//            let devino = dic["devino"] as? [String: Any],
-//            let pushId = getPushId(userInfo),
-//            let pushToken = Devino.pushToken
-//            else { return  }
-//
-//        if let silent = devino["silent"] as? Bool, silent {
-//            makeRequest(.pushEvent(pushToken: pushToken, pushId: pushId, actionType: .delivered, actionId: nil))
-//            return
-//        }
-//        guard let alert = devino["alert"] as? [String: Any] else { return }
-//
-//        if #available(iOS 10.0, *) {} else {
-//            if UIApplication.shared.applicationState == .active {
-//                notificationIOS9AppIsActive(userInfo)
-//                return
-//            }
-//        }
-//        var hasActions = false
-//        if let actions = devino["actions"] as? [[String: String]] {
-//            if #available(iOS 10.0, *) {
-//                var notActs = [UNNotificationAction]()
-//                for act in actions {
-//                    guard let title = act.string("title"),
-//                        let actIdent = act.string("action") else { continue }
-//                    let notAct = UNNotificationAction(identifier: actIdent,
-//                                                      title: title,
-//                                                      options: [.foreground])
-//                    notActs.append(notAct)
-//                    hasActions = true
-//                }
-//                if notActs.count > 0 {
-//                    let newsCategory = UNNotificationCategory(identifier: "CAT1",
-//                                                              actions: notActs,
-//                                                              intentIdentifiers: [],
-//                                                              options: [])
-//                    UNUserNotificationCenter.current().setNotificationCategories([newsCategory])
-//                }
-//            } else {
-//                var notActs = [UIMutableUserNotificationAction]()
-//                for act in actions {
-//                    guard let title = act.string("title"),
-//                        let actIdent = act.string("action") else { continue }
-//
-//                    let notAct = UIMutableUserNotificationAction()
-//                    notAct.identifier = actIdent
-//                    notAct.title = title
-//                    notAct.activationMode = UIUserNotificationActivationMode.foreground
-//                    notActs.append(notAct)
-//                    hasActions = true
-//                }
-//                let counterCategory = UIMutableUserNotificationCategory()
-//                counterCategory.identifier = "CAT1"
-//                if notActs.count > 0 {
-//                    counterCategory.setActions(notActs,  for: UIUserNotificationActionContext.default)
-//                    counterCategory.setActions(notActs,  for: UIUserNotificationActionContext.minimal)
-//                    let settings = UIUserNotificationSettings(types: [.badge, .sound, .alert],
-//                                                              categories: [counterCategory])
-//                    UIApplication.shared.registerUserNotificationSettings(settings)
-//                }
-//            }
-//        }
-//        let notification = UILocalNotification()
-//        notification.alertBody = alert.string("body")
-//        notification.soundName = alert.string("sound") ?? UILocalNotificationDefaultSoundName
-//        notification.fireDate = Date()
-//        notification.category = hasActions ? "CAT1" : ""
-//        notification.alertTitle = alert.string("title")
-//        notification.userInfo = userInfo
-//        if let mediaUrlStr = dic["linkToMedia"] as? String,  #available(iOS 10.0, *) {
-//            downloadAttachments(urlStr: mediaUrlStr, completion: { (tempUrl) in
-//                let content = UNMutableNotificationContent()
-//                content.title = alert.string("title") ?? ""
-//                content.body = alert.string("body") ?? ""
-//                content.userInfo = userInfo
-//                content.categoryIdentifier = hasActions ? "CAT1" : ""
-//                let attachment = try! UNNotificationAttachment(identifier: "linkToMedia", url: tempUrl, options: .none)
-//
-//                content.attachments = [attachment]
-//                let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
-//                let request = UNNotificationRequest(identifier: "notification.id.01", content: content, trigger: trigger)
-//                UNUserNotificationCenter.current().add(request, withCompletionHandler: nil)
-//            }) {
-//                UIApplication.shared.scheduleLocalNotification(notification)
-//            }
-//        } else {
-//            UIApplication.shared.scheduleLocalNotification(notification)
-//        }
-//    }
-    
     private var downloadTask: URLSessionDownloadTask? = nil
     
     private lazy var urlSession: URLSession = {
@@ -553,7 +391,6 @@ public final class Devino: NSObject {
     
     private func getNotificationActionId(_ userInfo: [AnyHashable: Any]) -> String? {
         guard let action = userInfo["action"] as? [AnyHashable: Any],
-//            let devino = dic["devino"] as? [String: Any],
             let pushActionId = action["action"] as? String else { return nil }
         return pushActionId
     }
@@ -599,7 +436,6 @@ public final class Devino: NSObject {
             return
         }
         let val = userDefaults.value(forKey: Devino.isSubscribedFlag) as? Bool
-//        Devino.isUserNotificationsAvailable = granted
         log("IsSubscribedFlag: \(String(describing: val)), Granted: \(granted)")
         guard  val != granted else { return }
         makeRequest(.usersSubscribtion(subscribed: granted))
@@ -789,8 +625,6 @@ public final class Devino: NSObject {
             case .usersSubscriptionStatus:  return users("subscription/status")
             case .pushEvent:
                 return "\(apiType)/messages/events"
-//                guard let pushToken = Devino.pushToken else { return nil }
-//                return "\(apiType)/push-events"
             case .messages: return "\(apiType)/messages"
             }
         }
@@ -865,39 +699,10 @@ public final class Devino: NSObject {
                 return
             }
             
-            //-----
-            
-//            let configBackground = URLSessionConfiguration.background(withIdentifier: "BackgroundSessionDevino")
-//            configBackground.sharedContainerIdentifier = appGroupId
-//            configBackground.allowsCellularAccess = true
-//            configBackground.waitsForConnectivity = true
-//
-//            if #available(iOS 13.0, *) {
-//                configBackground.allowsConstrainedNetworkAccess = true
-//                configBackground.allowsExpensiveNetworkAccess = true
-//            }
-//
-//            let count = requestCounter
-//            requestCounter += 1
-//
-//            if let url = request.url?.absoluteURL {
-//                log("Request(\(count)): url[\(url)]")
-//            }
-//            if let body = request.httpBody {
-//                log("Body data: \(String(data: body, encoding: .utf8) ?? "no body data")")
-//            }
-//
-//            URLSession(configuration: configBackground, delegate: self, delegateQueue: nil).uploadTask(withStreamedRequest: request).resume()
-            
-            
-            
-            //-----
-            
             // Create and run a URLSession data task with our JSON encoded POST request
             let config = URLSessionConfiguration.default
             config.sharedContainerIdentifier = appGroupId
             config.allowsCellularAccess = true
-//            config.waitsForConnectivity = true
 
             if #available(iOS 13.0, *) {
                 config.allowsConstrainedNetworkAccess = true
@@ -1031,7 +836,6 @@ extension Devino: CLLocationManagerDelegate {
                 text: "\(String(format: "%.7f", userLocation.coordinate.latitude)), \(String(format: "%.7f", userLocation.coordinate.longitude)), \(Date.ISOStringFromDate(date: Date()).convert())",
                 priority: .low))
             }
-            
         }
     }
 

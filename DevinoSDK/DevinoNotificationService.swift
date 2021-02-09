@@ -22,7 +22,7 @@ open class DevinoNotificationService: UNNotificationServiceExtension {
         self.contentHandler = contentHandler
         self.originalContent = request.content
         var result: UNNotificationContent = request.content
-        Devino.shared.log("✅ Did receive push notification: \(request.content.userInfo)")
+        Devino.shared.log("Did receive push notification: \(request.content.userInfo)")
         Devino.shared.trackReceiveRemoteNotification(request.content.userInfo, appGroupsId: appGroupsId ?? "")
         defer {
             contentHandler(result)
@@ -36,8 +36,6 @@ open class DevinoNotificationService: UNNotificationServiceExtension {
     }
     
     override open func serviceExtensionTimeWillExpire() {
-        // Called just before the extension will be terminated by the system.
-        // Use this as an opportunity to deliver your "best attempt" at modified content, otherwise the original push payload will be used.
         if let originalContent = originalContent {
             contentHandler?(originalContent)
         }
