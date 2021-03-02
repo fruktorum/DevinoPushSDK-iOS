@@ -673,7 +673,7 @@ public final class Devino: NSObject {
       
         if let key = userDefaults.string(forKey: Devino.configKeyFlag) {
             headers["Content-Type"] = "application/json"
-            headers["Authorization"] = "\(key)"  //X-Api-Key
+            headers["X-Api-Key"] = "\(key)"  //X-Api-Key
         }
         request.allHTTPHeaderFields = headers
         log("Headers: \(headers)")
