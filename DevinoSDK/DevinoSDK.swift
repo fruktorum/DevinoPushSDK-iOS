@@ -763,7 +763,7 @@ public final class Devino: NSObject {
         let config = URLSessionConfiguration.default
         let session = URLSession(configuration: config)
         
-        let task = session.dataTask(with: request) {[weak self] (responseData, response, responseError) in
+        let task = session.dataTask(with: request) { [weak self] (responseData, response, responseError) in
             let httpResponse = response as? HTTPURLResponse
             // APIs usually respond with the data you just sent in your POST request
             if let data = responseData, let utf8Representation = String(data: data, encoding: .utf8) {
@@ -776,10 +776,8 @@ public final class Devino: NSObject {
             }
             
             if httpResponse == nil || httpResponse?.statusCode == 500 {
-                self?.needRepeatRequest(request: request)
                 return
             } else if let statusCode = httpResponse?.statusCode, statusCode > 299 {
-                self?.needRepeatRequest(request: request)
                 return
             }
         }
@@ -791,7 +789,6 @@ public final class Devino: NSObject {
             failedRequestsCount.removeAll()
             return
         }
-        log("Will be a repeat request \(String(describing: request.url)) №(\(newVal)) after \(repeatTime) sec")
         concurrent.asyncAfter(deadline: .now() + .seconds(repeatTime)) {
             if let url = request.url?.absoluteURL {
                 self.log("REPEATE: url[\(url)]")
