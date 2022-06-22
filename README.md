@@ -37,7 +37,15 @@
 
 <img src="https://i.gyazo.com/d11f17944baf62a8ddbb2df5c82f97a0.png" align="center" width="200" >
 
-2. Connection **DevinoNotificationService**:
+2. Correctly setup all targets iOS versions in project and Project Deployment Target, ***every targets must have the same versions***.
+
+<img src="https://i.gyazo.com/ca39750deaa18445416388d5bce1f3cb.png" align="center" width="600" >
+
+<img src="https://i.gyazo.com/66ce492984aaef0f8755483a85cc82ed.png" align="center" width="600" >
+
+<img src="https://i.gyazo.com/ec194cf20c81d39daf2f591cb8c3e49d.png" align="center" width="600" >
+
+3. Connection **DevinoNotificationService**:
 
 ```swift
 import DevinoSDK
@@ -55,8 +63,8 @@ class NotificationService: DevinoNotificationService {
     }
 }
 ```
-3. Add AppGroups in Signing & Capabilities for project targets and NotificationService
-4. While debugging the NotificationService, make sure you have started the project correctly. You should build and run the NotificationService extension schema. 
+4. Add AppGroups in Signing & Capabilities for project targets and NotificationService
+5. While debugging the NotificationService, make sure you have started the project correctly. You should build and run the NotificationService extension schema. 
 
 **Notification Service Extension** needed to modify the contents of notifications (for example, to display pictures in notifications).
 
