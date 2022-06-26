@@ -774,12 +774,6 @@ public final class Devino: NSObject {
             } else {
                 self?.log("No readable data received in response")
             }
-            
-            if httpResponse == nil || httpResponse?.statusCode == 500 {
-                return
-            } else if let statusCode = httpResponse?.statusCode, statusCode > 299 {
-                return
-            }
         }
         
         let repeatTime: Int = newVal > 3 ? 60*60 : 60
