@@ -102,7 +102,7 @@ public final class Devino: NSObject {
         if Devino.pushToken != nil {
             getPermissionForPushNotifications { subscribed in
                 self.log("Subscribed if Devino.pushToken != nil: \(subscribed)")
-                self.makeRequest(.usersAppStart)
+                self.makeRequest(.usersAppStart(custom: [:]))
             }
         } else {
             if let token = userDefaults.string(forKey: Devino.deviceTokenFlag) {
@@ -113,11 +113,11 @@ public final class Devino: NSObject {
         if let existedIsSubscribedFlag = userDefaults.value(forKey:
             Devino.isSubscribedFlag) as? Bool, existedIsSubscribedFlag != UIApplication.shared.isRegisteredForRemoteNotifications {
             log("Devino.isUserNotificationsAvailable: \(Devino.isUserNotificationsAvailable))")
-            makeRequest(.usersSubscribtion(subscribed: Devino.isUserNotificationsAvailable))
+            makeRequest(.usersSubscribtion(subscribed: Devino.isUserNotificationsAvailable, custom: [:]))
         } else {
             getPermissionForPushNotifications { subscribed in
                 self.log("Subscribed if Devino.pushToken == nil: \(subscribed)")
-                self.makeRequest(.usersAppStart)
+                self.makeRequest(.usersAppStart(custom: [:]))
             }
         }
     }
@@ -144,7 +144,7 @@ public final class Devino: NSObject {
             return
         }
         log("Push Id = \(pushId), Push Token = \(pushToken)")
-        makeRequest(.pushEvent(pushToken: pushToken, pushId: pushId, actionType: .delivered, actionId: getNotificationActionId(userInfo)))
+        makeRequest(.pushEvent(pushToken: pushToken, pushId: pushId, actionType: .delivered, actionId: getNotificationActionId(userInfo), custom: [:]))
         log("Push DELIVERED: \(userInfo)")
         
         if Devino.isUserNotificationsAvailable {
@@ -158,16 +158,16 @@ public final class Devino: NSObject {
         let userInfo = response.notification.request.content.userInfo
         guard let pushToken = Devino.pushToken, let pushId = getPushId(userInfo) else { return }
         log("Push OPENED by Identifier \(response.actionIdentifier): \n\(userInfo)\n")
-        makeRequest(.pushEvent(pushToken: pushToken, pushId: pushId, actionType: .opened, actionId: actionId != nil ? actionId : getNotificationActionId(userInfo)))
+        makeRequest(.pushEvent(pushToken: pushToken, pushId: pushId, actionType: .opened, actionId: actionId != nil ? actionId : getNotificationActionId(userInfo), custom: [:]))
     }
     
     public func trackAppTerminated() {
-        makeRequest(.usersEvent(eventName: "device-terminated", eventData: [:]))
+        makeRequest(.usersEvent(eventName: "device-terminated", eventData: [:], custom: [:]))
     }
     
     public func sendCurrentSubscriptionStatus(isSubscribe: Bool) {
         log("SendCurrentSubscriptionStatus: \(isSubscribe)")
-        makeRequest(.usersSubscribtion(subscribed: isSubscribe))
+        makeRequest(.usersSubscribtion(subscribed: isSubscribe, custom: [:]))
     }
     
     public func getLastSubscriptionStatus(_ completionHandler: @escaping (Result<Bool, Error>) -> Void) {
@@ -231,7 +231,7 @@ public final class Devino: NSObject {
     //MARK: Event Data:
     public func trackEvent(name: String, params: [String: Any] = [:]) {
         log("CUSTOM EVENT: Name: \"\(name)\" \n Parameters: \(params)")
-        makeRequest(.usersEvent(eventName: name, eventData: params))
+        makeRequest(.usersEvent(eventName: name, eventData: params, custom: [:]))
     }
     
     //MARK: Notifications:
@@ -438,7 +438,7 @@ public final class Devino: NSObject {
         let val = userDefaults.value(forKey: Devino.isSubscribedFlag) as? Bool
         log("IsSubscribedFlag: \(String(describing: val)), Granted: \(granted)")
         guard  val != granted else { return }
-        makeRequest(.usersSubscribtion(subscribed: granted))
+        makeRequest(.usersSubscribtion(subscribed: granted, custom: [:]))
         userDefaults.set(granted, forKey: Devino.isSubscribedFlag)
         userDefaults.synchronize()
         log("If current SubscribedFlag != Granted, saved Granted with value: \(granted))")
@@ -481,7 +481,7 @@ public final class Devino: NSObject {
         return Param("subscribed", Devino.isUserNotificationsAvailable)
     }
     private static var platform: Param {
-        return Param("platform", "IOS")
+        return Param("platform", Platform.ios)
     }
     
 //MARK: -API
@@ -493,12 +493,12 @@ public final class Devino: NSObject {
         }
         
         case usersData(email: String?, phone: String?, custom: [String: Any])
-        case usersAppStart
-        case usersEvent(eventName: String, eventData: [String: Any])
-        case usersSubscribtion(subscribed: Bool)
+        case usersAppStart(custom: [String: Any])
+        case usersEvent(eventName: String?, eventData: [String: Any]?, custom: [String: Any])
+        case usersSubscribtion(subscribed: Bool?, custom: [String: Any])
         case usersSubscriptionStatus
-        case usersGeo(long: Double, lat: Double)
-        case pushEvent(pushToken: String, pushId: Int64, actionType: PushActionType, actionId: String?)
+        case usersGeo(longitude: Double?, latitude: Double?, custom: [String: Any])
+        case pushEvent(pushToken: String, pushId: Int64, actionType: PushActionType, actionId: String?, custom: [String: Any])
         case messages(title: String? = nil, text: String? = nil, badge: Int? = nil, validity: Int? = nil, priority: Priority = .realtime, silentPush: Bool? = nil, options: [String: Any]? = nil, apns: [String: Any]? = nil)
         
         var httpMethod: String {
@@ -537,39 +537,77 @@ public final class Devino: NSObject {
             switch self {
             case let .usersData(email, phone, custom):
                 var dic: [String: Any] = buildDic(dict: ["customData": buildDic(dict: custom,
-                                                                        Devino.osVersion,
-                                                                        Devino.appVersion,
-                                                                        Devino.language)
-                                                        ], Devino.reportedDateTimeUtc)
+                                                                                Devino.osVersion,
+                                                                                Devino.appVersion,
+                                                                                Devino.language,
+                                                                                Devino.platform)],
+                                                  Devino.reportedDateTimeUtc)
+                
                 if let email = email {
                     dic["email"] = email
                 }
+                
                 if let phone = phone {
                     dic["phone"] = phone
                 }
+                
                 return dic
-            case .usersAppStart:
-                return buildDic(Devino.reportedDateTimeUtc,
-                                Devino.appVersion,
-                                Devino.osVersion,
-                                Devino.platform,
-                                Devino.language,
-                                Devino.subscribed)
                 
-            case let .usersEvent(eventName, eventData):
-                return buildDic(dict: ["eventName": eventName, "eventData": eventData], Devino.reportedDateTimeUtc)
+            case let .usersAppStart(custom):
+                var dic: [String: Any] = buildDic(dict: ["customData": buildDic(dict: custom,
+                                                                                Devino.appVersion,
+                                                                                Devino.platform,
+                                                                                Devino.osVersion,
+                                                                                Devino.language,
+                                                                                Devino.subscribed)],
+                                                  Devino.reportedDateTimeUtc)
                 
-            case let .usersSubscribtion(subscribed):
-                return buildDic(dict: ["subscribed": subscribed], Devino.reportedDateTimeUtc)
+                return dic
+                
+            case let .usersEvent(eventName, eventData, custom):
+                var dic: [String: Any] = buildDic(dict: ["customData": buildDic(dict: custom,
+                                                                                Devino.platform)],
+                                                  Devino.reportedDateTimeUtc)
+                
+                if let eventName = eventName {
+                    dic["eventName"] = eventName
+                }
+                
+                if let eventData = eventData {
+                    dic["eventData"] = eventData
+                }
+                
+                return dic
+                
+            case let .usersSubscribtion(subscribed, custom):
+                var dic: [String: Any] = buildDic(dict: ["customData" : buildDic(dict: custom,
+                                                                                 Devino.platform)],
+                                                  Devino.reportedDateTimeUtc)
+                if let subscribed = subscribed {
+                    dic["subscribed"] = subscribed
+                }
+                return dic
                 
             case .usersSubscriptionStatus:
                 return [:]
                 
-            case let .usersGeo(long, lat):
-                return buildDic(dict: ["longitude": long, "latitude": lat], Devino.reportedDateTimeUtc)
+            case let .usersGeo(longitude, latitude, custom):
+                var dic: [String: Any] = buildDic(dict: ["customData" : buildDic(dict: custom,
+                                                                                 Devino.platform)],
+                                                  Devino.reportedDateTimeUtc)
+                if let longitude = longitude {
+                    dic["longitude"] = longitude
+                }
                 
-            case let .pushEvent(pushToken, pushId, actionType, actionId):
-                var dic = buildDic(dict: ["pushToken": pushToken,
+                if let latitude = latitude {
+                    dic["latitude"] = latitude
+                }
+                
+                return dic
+                
+            case let .pushEvent(pushToken, pushId, actionType, actionId, custom):
+                var dic = buildDic(dict: ["customData" : buildDic(dict: custom),
+                                          "pushToken": pushToken,
                                           "pushId": pushId,
                                           "actionType": actionType.rawValue], Devino.reportedDateTimeUtc)
                 if let actionId = actionId {
@@ -819,7 +857,7 @@ extension Devino: CLLocationManagerDelegate {
     
     public func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         let userLocation: CLLocation = locations[0] as CLLocation
-        makeRequest(.usersGeo(long: userLocation.coordinate.longitude, lat: userLocation.coordinate.latitude)) { [weak self] (data, response, error) in
+        makeRequest(.usersGeo(longitude: userLocation.coordinate.longitude, latitude: userLocation.coordinate.latitude, custom: [:])) { [weak self] (data, response, error) in
             guard let `self` = self else { return }
             if self.isSendPush {
                 self.isSendPush = false
@@ -864,7 +902,7 @@ public class ActionButton {
 }
 
 public enum Priority: String {
-    case mediul = "MEDIUM"
+    case medium = "MEDIUM"
     case low = "LOW"
     case high = "HIGH"
     case realtime = "REALTIME"
@@ -873,6 +911,12 @@ public enum Priority: String {
 public enum Badge: Int {
     case zero = 0
     case one = 1
+}
+
+private enum Platform: String {
+    case ios = "IOS"
+    case android = "ANDROID"
+    case huawei = "HUAWEI"
 }
 
 private enum ErrorHandler: Error {
