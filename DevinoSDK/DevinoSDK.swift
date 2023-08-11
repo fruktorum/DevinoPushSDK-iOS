@@ -294,6 +294,17 @@ public final class Devino: NSObject {
         return nil
     }
     
+    // MARK: Change apiRoot URL
+    public func setupApiRootUrl(with apiRootUrl: String) {
+        if let userDefaults = UserDefaultsManager.userDefaults {
+            userDefaults.removeObject(forKey: Devino.apiRootUrl)
+            userDefaults.set(apiRootUrl, forKey: Devino.apiRootUrl)
+            log("Api Root URL is changed")
+        } else {
+            log("Error: UserDefaults not found")
+        }
+    }
+    
 //MARK: -Private:
     
     //MARK: Geo Data:
