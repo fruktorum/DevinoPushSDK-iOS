@@ -278,6 +278,13 @@ public final class Devino: NSObject {
         }
     }
     
+    public func getTokenCopy() -> String? {
+        guard let userDefaults = UserDefaultsManager.userDefaults else {
+            return nil
+        }
+        return userDefaults.string(forKey: Devino.deviceTokenFlag)
+    }
+    
     public func getOptions(_ userInfo: [AnyHashable: Any]) -> [String: Any]? {
         guard let val = userInfo["aps"],
             let dic = val as? [AnyHashable: Any] else { return nil }
