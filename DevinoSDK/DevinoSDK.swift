@@ -278,6 +278,13 @@ public final class Devino: NSObject {
         }
     }
     
+    public func getTokenCopy() -> String? {
+        guard let userDefaults = UserDefaultsManager.userDefaults else {
+            return nil
+        }
+        return userDefaults.string(forKey: Devino.deviceTokenFlag)
+    }
+    
     public func getOptions(_ userInfo: [AnyHashable: Any]) -> [String: Any]? {
         guard let val = userInfo["aps"],
               let dic = val as? [AnyHashable: Any] else { return nil }
@@ -287,7 +294,18 @@ public final class Devino: NSObject {
         return nil
     }
     
-    //MARK: -Private:
+    // MARK: Change apiRoot URL
+    public func setupApiRootUrl(with apiRootUrl: String) {
+        if let userDefaults = UserDefaultsManager.userDefaults {
+            userDefaults.removeObject(forKey: Devino.apiRootUrl)
+            userDefaults.set(apiRootUrl, forKey: Devino.apiRootUrl)
+            log("Api Root URL is changed")
+        } else {
+            log("Error: UserDefaults not found")
+        }
+    }
+    
+//MARK: -Private:
     
     //MARK: Geo Data:
     private func trackLocation() {
