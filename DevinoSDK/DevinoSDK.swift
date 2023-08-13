@@ -12,7 +12,7 @@ import CoreLocation
 
 public final class Devino: NSObject {
     
-//MARK: -Configurations:
+    //MARK: -Configurations:
     
     private static let deviceTokenFlag = "DevinoDeviceTokenFlag"
     private static let isSubscribedFlag = "DevinoIsSubscribedFlag"
@@ -20,7 +20,7 @@ public final class Devino: NSObject {
     private static let apiRootUrl = "apiRootUrl"
     private static let appGroupId = "appGroupId"
     private static let appId = "appId"
- 
+    
     public struct Configuration {
         // Апи ключ Devino (X-Api-Key)
         public let key: String
@@ -77,7 +77,7 @@ public final class Devino: NSObject {
         return userDefaults.bool(forKey: Devino.isSubscribedFlag)
     }
     
-//MARK: -Public:
+    //MARK: -Public:
     
     public func activate(with config: Configuration) {
         configuration = config
@@ -111,7 +111,7 @@ public final class Devino: NSObject {
         }
         log("Is the remote registration process completed successfully: \(UIApplication.shared.isRegisteredForRemoteNotifications)")
         if let existedIsSubscribedFlag = userDefaults.value(forKey:
-            Devino.isSubscribedFlag) as? Bool, existedIsSubscribedFlag != UIApplication.shared.isRegisteredForRemoteNotifications {
+                                                                Devino.isSubscribedFlag) as? Bool, existedIsSubscribedFlag != UIApplication.shared.isRegisteredForRemoteNotifications {
             log("Devino.isUserNotificationsAvailable: \(Devino.isUserNotificationsAvailable))")
             makeRequest(.usersSubscribtion(subscribed: Devino.isUserNotificationsAvailable, custom: [:]))
         } else {
@@ -236,16 +236,16 @@ public final class Devino: NSObject {
     
     //MARK: Notifications:
     public func sendPushNotification(title: String? = "Devino Telecom",
-                                   text: String? = "Text notification",
-                                   badge: Badge? = nil,
-                                   validity: Int? = nil,
-                                   priority: Priority = .realtime, //MEDIUM, LOW, MEDIUM, HIGH, REALTIME
-                                   silentPush: Bool? = nil,
-                                   options: [String: Any]? = nil,
-                                   sound: String? = "default",
-                                   buttons: [ActionButton]? = nil,
-                                   linkToMedia: String? = nil,
-                                   action: String? = nil) {
+                                     text: String? = "Text notification",
+                                     badge: Badge? = nil,
+                                     validity: Int? = nil,
+                                     priority: Priority = .realtime, //MEDIUM, LOW, MEDIUM, HIGH, REALTIME
+                                     silentPush: Bool? = nil,
+                                     options: [String: Any]? = nil,
+                                     sound: String? = "default",
+                                     buttons: [ActionButton]? = nil,
+                                     linkToMedia: String? = nil,
+                                     action: String? = nil) {
         log("SendPushNotification")
         log("GetPermissionForPushNotifications")
         getPermissionForPushNotifications { subscribed in
@@ -280,14 +280,14 @@ public final class Devino: NSObject {
     
     public func getOptions(_ userInfo: [AnyHashable: Any]) -> [String: Any]? {
         guard let val = userInfo["aps"],
-            let dic = val as? [AnyHashable: Any] else { return nil }
+              let dic = val as? [AnyHashable: Any] else { return nil }
         if let options = dic["settings"] as? [String: Any] {
             return options
         }
         return nil
     }
     
-//MARK: -Private:
+    //MARK: -Private:
     
     //MARK: Geo Data:
     private func trackLocation() {
@@ -303,8 +303,8 @@ public final class Devino: NSObject {
         if let userInfo = userInfo as? [String: AnyObject] {
             var category = "content-buttons"
             if let val = userInfo["aps"],
-                let dic = val as? [AnyHashable: Any],
-                let categoryFromPush = dic["category"] as? String{
+               let dic = val as? [AnyHashable: Any],
+               let categoryFromPush = dic["category"] as? String{
                 category = categoryFromPush
             }
             var actionButtons: [AnyObject] = []
@@ -391,7 +391,7 @@ public final class Devino: NSObject {
     
     private func getNotificationActionId(_ userInfo: [AnyHashable: Any]) -> String? {
         guard let action = userInfo["action"] as? [AnyHashable: Any],
-            let pushActionId = action["action"] as? String else { return nil }
+              let pushActionId = action["action"] as? String else { return nil }
         return pushActionId
     }
     
@@ -443,7 +443,7 @@ public final class Devino: NSObject {
         userDefaults.synchronize()
         log("If current SubscribedFlag != Granted, saved Granted with value: \(granted))")
     }
-
+    
     func showPushPermissionMsg() {
         DispatchQueue.main.async {
             let alertController = UIAlertController(title: "Push Notifications Permission Required", message: "Please enable push notifications permissions in settings.", preferredStyle: UIAlertController.Style.alert)
@@ -458,7 +458,7 @@ public final class Devino: NSObject {
         }
     }
     
-//MARK: -Base params
+    //MARK: -Base params
     
     typealias ParamKey = String
     typealias ParamValue = Any
@@ -481,10 +481,10 @@ public final class Devino: NSObject {
         return Param("subscribed", Devino.isUserNotificationsAvailable)
     }
     private static var platform: Param {
-        return Param("platform", Platform.ios)
+        return Param("platform", Platform.ios.rawValue)
     }
     
-//MARK: -API
+    //MARK: -API
     enum APIMethod {
         
         enum PushActionType: String {
@@ -504,11 +504,11 @@ public final class Devino: NSObject {
         var httpMethod: String {
             switch self {
             case .pushEvent,
-                 .usersGeo,
-                 .usersSubscribtion,
-                 .usersEvent,
-                 .usersAppStart,
-                 .messages:
+                    .usersGeo,
+                    .usersSubscribtion,
+                    .usersEvent,
+                    .usersAppStart,
+                    .messages:
                 return "POST"
             case .usersData:
                 return "PUT"
@@ -520,12 +520,12 @@ public final class Devino: NSObject {
         var apiType: String {
             switch self {
             case .pushEvent,
-                 .usersGeo,
-                 .usersSubscribtion,
-                 .usersSubscriptionStatus,
-                 .usersEvent,
-                 .usersAppStart,
-                 .usersData:
+                    .usersGeo,
+                    .usersSubscribtion,
+                    .usersSubscriptionStatus,
+                    .usersEvent,
+                    .usersAppStart,
+                    .usersData:
                 return "sdk"
             case .messages:
                 return "api"
@@ -606,14 +606,17 @@ public final class Devino: NSObject {
                 return dic
                 
             case let .pushEvent(pushToken, pushId, actionType, actionId, custom):
-                var dic = buildDic(dict: ["customData" : buildDic(dict: custom),
-                                          "pushToken": pushToken,
-                                          "pushId": pushId,
-                                          "actionType": actionType.rawValue], Devino.reportedDateTimeUtc)
+                var dic: [String: Any] = buildDic(dict: ["customData" : buildDic(dict: custom),
+                                                         "pushToken": pushToken,
+                                                         "pushId": pushId,
+                                                         "actionType": actionType.rawValue],
+                                                  Devino.reportedDateTimeUtc)
                 if let actionId = actionId {
                     dic["actionId"] = actionId
                 }
+                
                 return dic
+                
             case let .messages(title, text, badge, validity, priority, silentPush, options, apns):
                 var dic = buildDic(dict: ["priority": priority.rawValue])
                 if let pushToken = Devino.pushToken {
@@ -677,17 +680,17 @@ public final class Devino: NSObject {
     
     private var requestCounter = 1
     
-//MARK: -Make Request:
+    //MARK: -Make Request:
     
     func makeRequest(_ meth: APIMethod, _ completionHandler: ((Data?, HTTPURLResponse?, Error?) -> Void)? = nil) {
-    
+        
         guard let userDefaults = UserDefaultsManager.userDefaults else {
             log("Error: UserDefaults in makeRequest not found!")
             return
         }
         guard let path = meth.path else { return }
         let applicationId = userDefaults.integer(forKey: Devino.appId)
-    
+        
         var urlComponents = URLComponents()
         urlComponents.scheme = "https"
         let apiRootUrl = userDefaults.string(forKey: Devino.apiRootUrl)
@@ -696,7 +699,7 @@ public final class Devino: NSObject {
         case .usersSubscriptionStatus:
             urlComponents.path = "/push/\(path)"
             urlComponents.queryItems = [
-               URLQueryItem(name: "applicationId", value: "\(applicationId)")
+                URLQueryItem(name: "applicationId", value: "\(applicationId)")
             ]
         default:
             urlComponents.path = "/push/\(path)"
@@ -708,14 +711,14 @@ public final class Devino: NSObject {
         request.httpMethod = meth.httpMethod
         request.allowsCellularAccess = true
         var headers = request.allHTTPHeaderFields ?? [:]
-      
+        
         if let key = userDefaults.string(forKey: Devino.configKeyFlag) {
             headers["Content-Type"] = "application/json"
             headers["X-Api-Key"] = "\(key)"  //X-Api-Key
         }
         request.allHTTPHeaderFields = headers
         log("Headers: \(headers)")
-
+        
         do {
             var params = meth.params
             var apiParams: [Any]?
@@ -741,7 +744,7 @@ public final class Devino: NSObject {
             let config = URLSessionConfiguration.default
             config.sharedContainerIdentifier = appGroupId
             config.allowsCellularAccess = true
-
+            
             if #available(iOS 13.0, *) {
                 config.allowsConstrainedNetworkAccess = true
                 config.allowsExpensiveNetworkAccess = true
@@ -767,7 +770,7 @@ public final class Devino: NSObject {
                         self?.log("Response(\(count)):[\(String(describing: httpResponse?.statusCode))]: no readable data received in response")
                         completionHandler?(nil, nil, error)
                     }
-
+                    
                     if httpResponse == nil || httpResponse?.statusCode == 500 {
                         self?.needRepeatRequest(request: request)
                         return
@@ -783,7 +786,7 @@ public final class Devino: NSObject {
         }
     }
     
-//MARK: -Make Repeate Request:
+    //MARK: -Make Repeate Request:
     
     private let concurrent = DispatchQueue(label: "Devino", attributes: .concurrent)
     private var failedRequestsCount = [URLRequest: Int]()
@@ -862,16 +865,16 @@ extension Devino: CLLocationManagerDelegate {
             if self.isSendPush {
                 self.isSendPush = false
                 self.makeRequest(.messages(title: "Ваши координаты:",
-                text: "\(String(format: "%.7f", userLocation.coordinate.latitude)), \(String(format: "%.7f", userLocation.coordinate.longitude)), \(Date.ISOStringFromDate(date: Date()).convert())",
-                priority: .low))
+                                           text: "\(String(format: "%.7f", userLocation.coordinate.latitude)), \(String(format: "%.7f", userLocation.coordinate.longitude)), \(Date.ISOStringFromDate(date: Date()).convert())",
+                                           priority: .low))
             }
         }
     }
-
+    
     public func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         log("Error location: \(error)")
     }
-
+    
     private func showLocationPermissionMsg() {
         let alertController = UIAlertController(title: "Location Permission Required", message: "Please enable location permissions in settings.", preferredStyle: UIAlertController.Style.alert)
         let okAction = UIAlertAction(title: "Settings", style: .default, handler: {(cAlertAction) in
@@ -924,7 +927,7 @@ private enum ErrorHandler: Error {
     case failureServerData
 }
 
- //MARK: -UserDefaults
+//MARK: -UserDefaults
 
 public class UserDefaultsManager: NSObject {
     public static var userDefaults: UserDefaults?
