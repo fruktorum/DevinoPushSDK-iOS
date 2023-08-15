@@ -235,8 +235,8 @@ public final class Devino: NSObject {
     }
     
     //MARK: Notifications:
-    public func sendPushNotification(title: String? = "Devino Telecom",
-                                     text: String? = "Text notification",
+    public func sendPushNotification(title: String?,
+                                     text: String?,
                                      badge: Badge? = nil,
                                      validity: Int? = nil,
                                      priority: Priority = .realtime, //MEDIUM, LOW, MEDIUM, HIGH, REALTIME
