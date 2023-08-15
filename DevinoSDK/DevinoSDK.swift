@@ -758,7 +758,6 @@ public final class Devino: NSObject {
                 return
             }
             
-            // Create and run a URLSession data task with our JSON encoded POST request
             let config = URLSessionConfiguration.default
             config.sharedContainerIdentifier = appGroupId
             config.allowsCellularAccess = true
@@ -779,7 +778,6 @@ public final class Devino: NSObject {
             let task = session.dataTask(with: request) { [weak self] (responseData, response, responseError) in
                 DispatchQueue.main.async {
                     let httpResponse = response as? HTTPURLResponse
-                    // APIs usually respond with the data you just sent in your POST request
                     if let data = responseData, let utf8Representation = String(data: data, encoding: .utf8) {
                         self?.log("Response(\(count)):[\(String(describing: httpResponse?.statusCode))]: \(utf8Representation)")
                         completionHandler?(data, httpResponse, nil)
@@ -824,7 +822,6 @@ public final class Devino: NSObject {
         
         let task = session.dataTask(with: request) { [weak self] (responseData, response, responseError) in
             let httpResponse = response as? HTTPURLResponse
-            // APIs usually respond with the data you just sent in your POST request
             if let data = responseData, let utf8Representation = String(data: data, encoding: .utf8) {
                 self?.failedRequestsCount.removeValue(forKey: request)
                 self?.log("Response: \(utf8Representation)")
@@ -896,7 +893,6 @@ extension Devino: CLLocationManagerDelegate {
     private func showLocationPermissionMsg() {
         let alertController = UIAlertController(title: "Location Permission Required", message: "Please enable location permissions in settings.", preferredStyle: UIAlertController.Style.alert)
         let okAction = UIAlertAction(title: "Settings", style: .default, handler: {(cAlertAction) in
-            //Redirect to Settings app
             UIApplication.shared.open(URL(string: UIApplication.openSettingsURLString)!)
         })
         let cancelAction = UIAlertAction(title: "Cancel", style: UIAlertAction.Style.cancel)
