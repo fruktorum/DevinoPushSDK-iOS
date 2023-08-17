@@ -35,7 +35,7 @@ public final class Devino: NSObject {
         // Порт
         public let apiRootPort: Int?
         
-        public init(key: String, applicationId: Int, appGroupId: String, geoDataSendindInterval: Int = 0, apiRootUrl: String = "integrationapi.net", apiRootPort: Int? = 6602) {
+        public init(key: String, applicationId: Int, appGroupId: String, geoDataSendindInterval: Int = 0, apiRootUrl: String = "integrationapi.net", apiRootPort: Int?) {
             self.key = key
             self.applicationId = applicationId
             self.appGroupId = appGroupId
