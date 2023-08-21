@@ -572,12 +572,12 @@ public final class Devino: NSObject {
                 return dic
                 
             case let .usersAppStart(custom):
-                var dic: [String: Any] = buildDic(dict: ["customData": buildDic(dict: custom,
-                                                                                Devino.appVersion,
-                                                                                Devino.platform,
-                                                                                Devino.osVersion,
-                                                                                Devino.language,
-                                                                                Devino.subscribed)],
+                var dic: [String: Any] = buildDic(dict: ["customData": buildDic(dict: custom)],
+                                                  Devino.appVersion,
+                                                  Devino.platform,
+                                                  Devino.osVersion,
+                                                  Devino.language,
+                                                  Devino.subscribed,
                                                   Devino.reportedDateTimeUtc)
                 
                 return dic
