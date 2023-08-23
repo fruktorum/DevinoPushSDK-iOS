@@ -31,11 +31,11 @@ public final class Devino: NSObject {
         // Интервал в минутах для обновления данных геолокации
         public let geoDataSendindInterval: Int
         // Сервер
-        public let apiRootUrl:String
+        public var apiRootUrl: String
         // Порт
         public let apiRootPort: Int?
         
-        public init(key: String, applicationId: Int, appGroupId: String, geoDataSendindInterval: Int = 0, apiRootUrl: String = "integrationapi.net", apiRootPort: Int?) {
+        public init(key: String, applicationId: Int, appGroupId: String, geoDataSendindInterval: Int = 0, apiRootUrl: String, apiRootPort: Int?) {
             self.key = key
             self.applicationId = applicationId
             self.appGroupId = appGroupId
@@ -52,6 +52,7 @@ public final class Devino: NSObject {
     func log(_ str: String) {
         logger?("\n\n\(Date.getLogTime()): \n\(str)")
     }
+    
     public static var shared = Devino()
     
     private static var pushToken: String? {
@@ -90,6 +91,18 @@ public final class Devino: NSObject {
             userDefaults.synchronize()
         }
         log("Devino activate. Configurations received!")
+    }
+    
+    // MARK: Change apiRoot URL
+    
+    public func setupApiRootUrl(with apiRootUrl: String) {
+        if let userDefaults = UserDefaultsManager.userDefaults {
+            userDefaults.removeObject(forKey: Devino.apiRootUrl)
+            userDefaults.set(apiRootUrl, forKey: Devino.apiRootUrl)
+            log("Api Root URL is changed")
+        } else {
+            log("Error: UserDefaults not found")
+        }
     }
     
     public func trackAppLaunch() {
@@ -292,17 +305,6 @@ public final class Devino: NSObject {
             return options
         }
         return nil
-    }
-    
-    // MARK: Change apiRoot URL
-    public func setupApiRootUrl(with apiRootUrl: String) {
-        if let userDefaults = UserDefaultsManager.userDefaults {
-            userDefaults.removeObject(forKey: Devino.apiRootUrl)
-            userDefaults.set(apiRootUrl, forKey: Devino.apiRootUrl)
-            log("Api Root URL is changed")
-        } else {
-            log("Error: UserDefaults not found")
-        }
     }
     
 //MARK: -Private:
@@ -706,37 +708,19 @@ public final class Devino: NSObject {
             log("Error: UserDefaults in makeRequest not found!")
             return
         }
-        guard let path = meth.path else { return }
-        let applicationId = userDefaults.integer(forKey: Devino.appId)
         
-        var urlComponents = URLComponents()
-        urlComponents.scheme = "https"
-        let apiRootUrl = userDefaults.string(forKey: Devino.apiRootUrl)
-        urlComponents.host = apiRootUrl
-        switch meth {
-        case .usersSubscriptionStatus:
-            urlComponents.path = "/push/\(path)"
-            urlComponents.queryItems = [
-                URLQueryItem(name: "applicationId", value: "\(applicationId)")
-            ]
-        default:
-            urlComponents.path = "/push/\(path)"
+        guard var request = prepareRequest(for: meth) else {
+            log("Error: Not create request!")
+            return
         }
         
-        guard let url = urlComponents.url else { fatalError("Could not create URL from components") }
+        guard let appGroupId = userDefaults.string(forKey: Devino.appGroupId) else {
+            log("Error: makeRequest not found!")
+            return
+        }
         
-        var request = URLRequest(url: url)
-        request.httpMethod = meth.httpMethod
         request.allowsCellularAccess = true
-        var headers = request.allHTTPHeaderFields ?? [:]
-        
-        if let key = userDefaults.string(forKey: Devino.configKeyFlag) {
-            headers["Content-Type"] = "application/json"
-            headers["X-Api-Key"] = "\(key)"  //X-Api-Key
-        }
-        request.allHTTPHeaderFields = headers
-        log("Headers: \(headers)")
-        
+        let applicationId = userDefaults.integer(forKey: Devino.appId)
         do {
             var params = meth.params
             var apiParams: [Any]?
@@ -778,6 +762,7 @@ public final class Devino: NSObject {
             let task = session.dataTask(with: request) { [weak self] (responseData, response, responseError) in
                 DispatchQueue.main.async {
                     let httpResponse = response as? HTTPURLResponse
+                    // APIs usually respond with the data you just sent in your POST request
                     if let data = responseData, let utf8Representation = String(data: data, encoding: .utf8) {
                         self?.log("Response(\(count)):[\(String(describing: httpResponse?.statusCode))]: \(utf8Representation)")
                         completionHandler?(data, httpResponse, nil)
@@ -800,6 +785,66 @@ public final class Devino: NSObject {
         } catch {
             log("Error: \(error)")
         }
+    }
+    
+    // MARK: - Prepare request
+    
+    private func prepareRequest(for apiAction: APIMethod) -> URLRequest? {
+        guard let userDefaults = UserDefaultsManager.userDefaults else {
+            log("❌ Error: UserDefaults in prepareRequest not found!")
+            return nil
+        }
+
+        guard let url = setupApiUrl(apiAction) else {
+            log("❌ Error: Could not create URL from components!")
+            return nil
+        }
+        
+        var request = URLRequest(url: url)
+        var headers = request.allHTTPHeaderFields ?? [:]
+        
+        if let key = userDefaults.string(forKey: Devino.configKeyFlag) {
+            headers["Content-Type"] = "application/json"
+            headers["X-Api-Key"] = "\(key)"  //X-Api-Key
+        }
+        request.httpMethod = apiAction.httpMethod
+        request.allHTTPHeaderFields = headers
+        log("Headers: \(headers)")
+        
+        return request
+    }
+    
+    private func setupApiUrl(_ apiAction: APIMethod) -> URL? {
+        guard let userDefaults = UserDefaultsManager.userDefaults else {
+            log("❌ Error: UserDefaults in setupUrl not found!")
+            return nil
+        }
+        
+        guard let path = apiAction.path else {
+            log("Error: ❌ Not found Path for request!")
+            return nil
+        }
+        
+        guard let apiRootUrl = userDefaults.string(forKey: Devino.apiRootUrl) else {
+            log("❌ Error: ApiRootUrl in UserDefaults is not found!")
+            return nil
+        }
+        
+        
+        let applicationId = userDefaults.integer(forKey: Devino.appId)
+        
+        var urlComponents = URLComponents(string: "\(apiRootUrl)/push/\(path)")
+        
+        switch apiAction {
+        case .usersSubscriptionStatus:
+            urlComponents?.queryItems = [
+                URLQueryItem(name: "applicationId", value: "\(applicationId)")
+            ]
+        default:
+            let urlComponents = URLComponents(string: "\(apiRootUrl)/push/\(path)")
+        }
+        
+        return urlComponents?.url
     }
     
     //MARK: -Make Repeate Request:
