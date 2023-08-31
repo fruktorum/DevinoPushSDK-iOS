@@ -217,6 +217,16 @@ Phone format - +79XXXXXXXXX, email format - XXXX@XX.XX
 
 To update user data, all fields are required.
 
+**5. Set a custom URL on the registartion screen:**
+```swift
+final public func setupApiRootUrl(with apiRootUrl: String)
+```
+
+Example:
+```swift
+Devino.shared.setupApiRootUrl(with: "https://integrationapi.net")
+```
+
 **5. Send geolocation:**
 
 In the Info.plist file sets the permissions Privacy - Location Always and When In Use Usage Description and Privacy - Location When In Use Usage Description to read the geolocation.
